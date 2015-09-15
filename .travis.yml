@@ -41,11 +41,11 @@ install:
 - rm bii-ubuntu64.deb
 
   # Install CMake
-- wget https://s3.amazonaws.com/biibinaries/thirdparty/cmake-3.2.3-Linux-64.tar.gz
-- tar -xzf cmake-3.2.3-Linux-64.tar.gz
-- sudo cp -fR cmake-3.2.3-Linux-64/* /usr
-- rm -rf cmake-3.2.3-Linux-64
-- rm cmake-3.2.3-Linux-64.tar.gz
+- wget http://www.cmake.org/files/v3.2/cmake-3.2.3-Linux-x86_64.tar.gz
+- tar -xzf cmake-3.2.3-Linux-x86_64
+- sudo cp -fR cmake-3.2.3-Linux-x86_64/* /usr
+- rm -rf cmake-3.2.3-Linux-x86_64
+- rm cmake-3.2.3-Linux-x86_64.tar.gz
 
 - export TRAVIS_CXX=$CXX
 
