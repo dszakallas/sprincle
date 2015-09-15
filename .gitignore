@@ -1,0 +1,10 @@
+*.DS_Store
+build/*
+cli_build/*
+build-clang/*
+build-gcc/*
+Makefile
+bin/*
+lib/*
+*.swp
+bii/*
