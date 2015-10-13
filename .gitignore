@@ -1,5 +1,6 @@
 *.DS_Store
 build/*
+.idea/*
 cli_build/*
 build-clang/*
 build-gcc/*

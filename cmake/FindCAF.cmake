@@ -96,3 +96,4 @@ find_package_handle_standard_args(CAF
 mark_as_advanced(CAF_ROOT_DIR
                  CAF_LIBRARIES
                  CAF_INCLUDE_DIRS)
+
