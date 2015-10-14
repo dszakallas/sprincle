@@ -57,8 +57,10 @@ include_directories(include)
 add_subdirectory(src)
 add_subdirectory(test)
 enable_testing()
-add_test(NAME DetailTest COMMAND DetailTest)
-add_test(NAME ReteTest COMMAND ReteTest)
+set(TEST_ARGS --log_level=all)
+
+add_test(NAME DetailTest COMMAND DetailTest ${TEST_ARGS})
+add_test(NAME ReteTest COMMAND ReteTest ${TEST_ARGS})
 
 
 

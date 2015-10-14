@@ -8,6 +8,9 @@
 #include <tuple>
 #include <utility>
 
+#include <boost/iterator/zip_iterator.hpp>
+#include <boost/range.hpp>
+
 using namespace std;
 
 namespace sprincle {
@@ -20,6 +23,7 @@ namespace sprincle {
     decltype(auto) project(const Tuple& t) {
       return tuple<typename tuple_element<Indices, Tuple>::type...>(get<Indices>(t)...);
     }
+
 
   }
 }

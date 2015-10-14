@@ -14,6 +14,7 @@ endif()
 add_definitions (-DBOOST_TEST_DYN_LINK)
 
 
+
 add_executable (DetailTest test_detail.cpp)
 add_executable (ReteTest test_rete.cpp)
 

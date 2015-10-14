@@ -6,11 +6,11 @@
 #define SPRINCLE_RETE_HPP
 
 #include <vector>
-#include <set>
 #include <tuple>
 #include <array>
 #include <utility>
 #include <algorithm>
+#include <iostream>
 
 #include <caf/all.hpp>
 
@@ -22,68 +22,68 @@ using namespace sprincle::detail;
 
 namespace sprincle {
 
-  template<typename... Types>
+  template<typename Tuple>
   struct changeset {
-    set<tuple<Types...>> positive;
-    set<tuple<Types...>> negative;
+
+    using coll_type = vector<Tuple>;
+
+    coll_type positive;
+    coll_type negative;
 
     changeset(): positive(), negative() {};
 
     changeset(changeset&& o):
       positive(forward<decltype(o.positive)>(o.positive)),
-      negative(forward<decltype(o.positive)>(o.negative))
+      negative(forward<decltype(o.negative)>(o.negative))
     {}
 
     changeset(const changeset& o):
       positive(o.positive),
-      negative(o.positive)
+      negative(o.negative)
     {}
 
-
-    changeset(set<tuple<Types...>>&& p, set<tuple<Types...>>&& n) :
+    changeset(coll_type&& p, coll_type&& n) :
       positive(forward<decltype(p)>(p)),
       negative(forward<decltype(p)>(n))
     {}
 
+    changeset(const coll_type& p, const coll_type& n) :
+      positive(p),
+      negative(n)
+    {}
 
   };
 
-  template<typename... Types, size_t... I>
-  constexpr decltype(auto) trimmer_detail(tuple<Types...>, index_sequence<I...>) {
+  template<typename Tuple, size_t... I>
+  struct trimmer {
+    static decltype(auto) behavior(event_based_actor* self) {
+      return caf::behavior {
+        [=](const changeset<Tuple> &changes) {
 
-    return [] (event_based_actor* self) {
-      return behavior {
-        [=](const changeset<Types...>& changes) {
+          using projected_type = decltype(project<I...>(declval<Tuple>()));
 
-          using ProjectedTupleType = decltype(project<I...>(declval<tuple<Types...>>()));
+          typename changeset<projected_type>::coll_type positives(changes.positive.size());
 
-          set<ProjectedTupleType> positives;
-
-          for(auto&& positive : changes.positive) {
-            positives.insert(project<I...>(positive));
+          for (auto&& positive : changes.positive) {
+            positives.push_back(project<I...>(positive));
           }
 
-          set<ProjectedTupleType> negatives;
+          typename changeset<projected_type>::coll_type negatives(changes.negative.size());
 
-          for(auto&& negative : changes.negative) {
-            negatives.insert(project<I...>(negative));
+          for (auto&& negative : changes.negative) {
+            negatives.push_back(project<I...>(negative));
           }
 
-          return changeset<typename tuple_element<I, tuple<Types...>>::type...>(move(negatives), move(positives));
-
-
+          return changeset<tuple<typename tuple_element<I, Tuple>::type...>>(move(positives), move(negatives));
+        },
+        others >> [=] {
+          cerr << "unexpected: " << to_string(self->current_message()) << endl;
         }
       };
-    };
+
+    }
+
   };
-
-  template<typename Types, typename I>
-  constexpr decltype(auto) trimmer() {
-    return trimmer_detail(Types(), I());
-  };
-
-
-
 
 }
 
