@@ -60,19 +60,21 @@ namespace sprincle {
       return caf::behavior {
         [=](const changeset<Tuple> &changes) {
 
+          auto insert = [](auto&& to, const auto& from) {
+            auto i = 0;
+            for (auto&& tuple : from) {
+              to[i] = project<I...>(tuple);
+              ++i;
+            }
+          };
+
           using projected_type = decltype(project<I...>(declval<Tuple>()));
 
           typename changeset<projected_type>::coll_type positives(changes.positive.size());
-
-          for (auto&& positive : changes.positive) {
-            positives.push_back(project<I...>(positive));
-          }
-
           typename changeset<projected_type>::coll_type negatives(changes.negative.size());
 
-          for (auto&& negative : changes.negative) {
-            negatives.push_back(project<I...>(negative));
-          }
+          insert(positives, changes.positive);
+          insert(negatives, changes.negative);
 
           return changeset<tuple<typename tuple_element<I, Tuple>::type...>>(move(positives), move(negatives));
         },

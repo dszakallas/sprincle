@@ -29,7 +29,7 @@ using namespace sprincle;
 BOOST_AUTO_TEST_SUITE( ReteTestSuite )
 
 
-template <class Handle, class ChangesIn, class ChangesOut>
+template <class Handle, class ChangesIn, class ChangesOut, class Function>
 void tester(event_based_actor* self, const Handle& testee, const ChangesIn& changesIn) {
   self->link_to(testee);
   // will be invoked if we receive an unexpected response message
@@ -42,14 +42,11 @@ void tester(event_based_actor* self, const Handle& testee, const ChangesIn& chan
   // this is where the assertions happen
   self->sync_send(testee, changesIn).then([=](const ChangesOut& changesOut){
 
-    BOOST_MESSAGE(changesIn.positive.size());
-    BOOST_MESSAGE(changesOut.positive.size());
+    test(changesOut);
 
-    BOOST_MESSAGE(changesIn.negative.size());
-    BOOST_MESSAGE(changesOut.negative.size());
+    self->quit(exit_reason::user_shutdown);
 
     BOOST_CHECK(changesIn.positive.size() == changesOut.positive.size());
-
 
     auto positives = boost::make_iterator_range(
       boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.positive), std::begin(changesOut.positive))),
