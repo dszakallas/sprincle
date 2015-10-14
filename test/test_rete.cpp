@@ -5,10 +5,8 @@
 
 #include <utility>
 #include <tuple>
-#include <string>
 #include <utility>
 #include <list>
-#include <iostream>
 
 #include <caf/all.hpp>
 
@@ -29,7 +27,7 @@ using namespace sprincle;
 BOOST_AUTO_TEST_SUITE( ReteTestSuite )
 
 
-template <class Handle, class ChangesIn, class ChangesOut, class Function>
+template <class Handle, class ChangesIn, class ChangesOut>
 void tester(event_based_actor* self, const Handle& testee, const ChangesIn& changesIn) {
   self->link_to(testee);
   // will be invoked if we receive an unexpected response message
@@ -41,10 +39,6 @@ void tester(event_based_actor* self, const Handle& testee, const ChangesIn& chan
   );
   // this is where the assertions happen
   self->sync_send(testee, changesIn).then([=](const ChangesOut& changesOut){
-
-    test(changesOut);
-
-    self->quit(exit_reason::user_shutdown);
 
     BOOST_CHECK(changesIn.positive.size() == changesOut.positive.size());
 
