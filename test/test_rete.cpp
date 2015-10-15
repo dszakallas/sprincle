@@ -16,13 +16,8 @@
 
 #include <sprincle/rete.hpp>
 
-
-
-
 using namespace std;
 using namespace sprincle;
-
-
 
 BOOST_AUTO_TEST_SUITE( ReteTestSuite )
 

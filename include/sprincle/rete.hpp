@@ -22,13 +22,13 @@ using namespace sprincle::detail;
 
 namespace sprincle {
 
-  template<typename Tuple>
+  template<typename tuple_t>
   struct changeset {
 
-    using coll_type = vector<Tuple>;
+    using changeset_t = vector<tuple_t>;
 
-    coll_type positive;
-    coll_type negative;
+    changeset_t positive;
+    changeset_t negative;
 
     changeset(): positive(), negative() {};
 
@@ -42,23 +42,23 @@ namespace sprincle {
       negative(o.negative)
     {}
 
-    changeset(coll_type&& p, coll_type&& n) :
+    changeset(changeset_t&& p, changeset_t&& n) :
       positive(forward<decltype(p)>(p)),
       negative(forward<decltype(p)>(n))
     {}
 
-    changeset(const coll_type& p, const coll_type& n) :
+    changeset(const changeset_t& p, const changeset_t& n) :
       positive(p),
       negative(n)
     {}
 
   };
 
-  template<typename Tuple, size_t... I>
+  template<typename tuple_t, size_t... I>
   struct trimmer {
     static decltype(auto) behavior(event_based_actor* self) {
       return caf::behavior {
-        [=](const changeset<Tuple> &changes) {
+        [=](const changeset<tuple_t> &changes) {
 
           auto insert = [](auto&& to, const auto& from) {
             auto i = 0;
@@ -68,24 +68,39 @@ namespace sprincle {
             }
           };
 
-          using projected_type = decltype(project<I...>(declval<Tuple>()));
+          using projected_t = decltype(project<I...>(declval<tuple_t>()));
+          using projected_changeset_t = typename changeset<projected_t>::changeset_t;
 
-          typename changeset<projected_type>::coll_type positives(changes.positive.size());
-          typename changeset<projected_type>::coll_type negatives(changes.negative.size());
+          projected_changeset_t positives(changes.positive.size());
+          projected_changeset_t negatives(changes.negative.size());
 
           insert(positives, changes.positive);
           insert(negatives, changes.negative);
 
-          return changeset<tuple<typename tuple_element<I, Tuple>::type...>>(move(positives), move(negatives));
+          return changeset<tuple<typename tuple_element<I, tuple_t>::type...>>(move(positives), move(negatives));
         },
         others >> [=] {
-          cerr << "unexpected: " << to_string(self->current_message()) << endl;
+          //TODO: Print error
         }
       };
 
     }
 
   };
+
+  template<typename tuple_t>
+  struct checker {
+    static decltype(auto) behavior() {
+      return caf::behavior {
+        [=](const tuple_t& changes) {
+
+        }
+      };
+    };
+
+  };
+
+
 
 }
 

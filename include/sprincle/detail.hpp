@@ -8,22 +8,62 @@
 #include <tuple>
 #include <utility>
 
-#include <boost/iterator/zip_iterator.hpp>
-#include <boost/range.hpp>
-
 using namespace std;
 
 namespace sprincle {
 
   namespace detail {
 
-    //TODO: Generalize to universal reference?
+    struct equals {
+      template<class T1, class T2>
+      bool operator()(const T1 &t1, const T2 &t2) const {
+        return t1 == t2;
+      }
+    };
 
-    template<size_t... Indices, typename Tuple>
-    decltype(auto) project(const Tuple& t) {
-      return tuple<typename tuple_element<Indices, Tuple>::type...>(get<Indices>(t)...);
+    struct not_equals {
+      template<class T1, class T2>
+      bool operator()(const T1 &t1, const T2 &t2) const {
+        return t1 != t2;
+      }
+    };
+
+    template<size_t... Indices, class tuple_t>
+    decltype(auto) project(const tuple_t& t) {
+     return tuple<typename tuple_element<Indices, tuple_t>::type...>(get<Indices>(t)...);
     }
 
+    template<class comparator_t, class T1, class T2>
+    bool _compare_tuple_impl(const comparator_t& compare, const T1& t1, const T2& t2) {
+      return compare(t1,t2);
+    };
+
+    //Helper, recursively compares to elements with
+    //the comparator.
+    template<class comparator_t, class T1, class T2, class... Ts>
+    bool _compare_tuple_impl(const comparator_t& compare, const T1& t1, const T2& t2, const Ts&... ts) {
+      if (!compare(t1, t2)) return false;
+      return _compare_tuple_impl(compare, t1, ts...);
+    }
+
+    //Helper, expands the indexes into a parameter pack
+    template<class comparator_t, class tuple_t, size_t... I>
+    bool _compare_tuple_detail(const comparator_t& compare, const tuple_t& t, index_sequence<I...>) {
+      return _compare_tuple_impl(compare, get<I>(t)...);
+    }
+
+    /*
+     * The size of the tuple should be at least 2.
+     */
+    template<class tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
+    bool compare_same(const tuple_t& t) {
+      return _compare_tuple_detail(equals(), t, I());
+    }
+
+    template<class tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
+    bool compare_not_same(const tuple_t& t) {
+      return _compare_tuple_detail(not_equals(), t, I());
+    }
 
   }
 }
