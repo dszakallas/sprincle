@@ -13,6 +13,7 @@
 
 using namespace std;
 using namespace sprincle::detail;
+using namespace sprincle::filters;
 
 BOOST_AUTO_TEST_SUITE( DetailTestSuite )
 
@@ -47,10 +48,11 @@ BOOST_AUTO_TEST_CASE( ElementsEquals_0 )
   auto _1 = 4;
   auto _2 = 7;
 
-  auto equals = compare_same(std::make_tuple(_0, _1, _2));
+  auto compare = forall_equals();
+
+  auto equals = compare(std::make_tuple(_0, _1, _2));
 
   BOOST_CHECK( ! equals );
-
 
 }
 
@@ -60,7 +62,10 @@ BOOST_AUTO_TEST_CASE( ElementsEquals_1 )
   auto _1 = 0;
   auto _2 = 0;
 
-  auto equals = compare_same(std::make_tuple(_0, _1, _2));
+  auto compare = forall_equals();
+
+
+  auto equals = compare(std::make_tuple(_0, _1, _2));
 
   BOOST_CHECK( equals );
 
@@ -72,7 +77,9 @@ BOOST_AUTO_TEST_CASE( ElementsNotEqual_0 )
   auto _1 = 0;
   auto _2 = 0;
 
-  auto not_equals = compare_not_same(std::make_tuple(_0, _1, _2));
+  auto compare = exists_not_equal();
+
+  auto not_equals = compare(std::make_tuple(_0, _1, _2));
 
   BOOST_CHECK( ! not_equals );
 
@@ -84,7 +91,9 @@ BOOST_AUTO_TEST_CASE( ElementsNotEqual_1 )
   auto _1 = 2;
   auto _2 = 3;
 
-  auto not_equals = compare_not_same(std::make_tuple(_0, _1, _2));
+  auto compare = exists_not_equal();
+
+  auto not_equals = compare(std::make_tuple(_0, _1, _2));
 
   BOOST_CHECK( not_equals );
 

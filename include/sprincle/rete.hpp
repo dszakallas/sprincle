@@ -12,6 +12,9 @@
 #include <algorithm>
 #include <iostream>
 
+#include <boost/iterator/filter_iterator.hpp>
+#include <boost/range.hpp>
+
 #include <caf/all.hpp>
 
 #include "detail.hpp"
@@ -43,8 +46,8 @@ namespace sprincle {
     {}
 
     changeset(changeset_t&& p, changeset_t&& n) :
-      positive(forward<decltype(p)>(p)),
-      negative(forward<decltype(p)>(n))
+      positive(forward<changeset_t>(p)),
+      negative(forward<changeset_t>(n))
     {}
 
     changeset(const changeset_t& p, const changeset_t& n) :
@@ -58,7 +61,7 @@ namespace sprincle {
   struct trimmer {
     static decltype(auto) behavior(event_based_actor* self) {
       return caf::behavior {
-        [=](const changeset<tuple_t> &changes) {
+        [=](const changeset<tuple_t>& changes) {
 
           auto insert = [](auto&& to, const auto& from) {
             auto i = 0;
@@ -88,12 +91,35 @@ namespace sprincle {
 
   };
 
-  template<typename tuple_t>
-  struct checker {
-    static decltype(auto) behavior() {
+  template<class tuple_t, class predicate_t>
+  struct filter {
+    static decltype(auto) behavior(event_based_actor* self) {
       return caf::behavior {
-        [=](const tuple_t& changes) {
+        [=](const changeset<tuple_t>& changes) {
 
+          changeset<tuple_t> filtered;
+
+          auto good_positives = boost::make_iterator_range(
+            boost::make_filter_iterator<predicate_t>(begin(changes.positive), end(changes.positive)),
+            boost::make_filter_iterator<predicate_t>(end(changes.positive), end(changes.positive))
+          );
+
+          for(auto&& good_one : good_positives)
+            filtered.positive.push_back(good_one);
+
+          auto good_negatives = boost::make_iterator_range(
+            boost::make_filter_iterator<predicate_t>(begin(changes.negative), end(changes.negative)),
+            boost::make_filter_iterator<predicate_t>(end(changes.negative), end(changes.negative))
+          );
+
+          for(auto&& good_one : good_negatives)
+            filtered.negative.push_back(good_one);
+
+          return filtered;
+
+        },
+        others >> [=] {
+          //TODO: Print error
         }
       };
     };

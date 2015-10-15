@@ -28,6 +28,7 @@ namespace sprincle {
       }
     };
 
+
     template<size_t... Indices, class tuple_t>
     decltype(auto) project(const tuple_t& t) {
      return tuple<typename tuple_element<Indices, tuple_t>::type...>(get<Indices>(t)...);
@@ -52,18 +53,26 @@ namespace sprincle {
       return _compare_tuple_impl(compare, get<I>(t)...);
     }
 
-    /*
-     * The size of the tuple should be at least 2.
-     */
-    template<class tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
-    bool compare_same(const tuple_t& t) {
-      return _compare_tuple_detail(equals(), t, I());
-    }
+  }
 
-    template<class tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
-    bool compare_not_same(const tuple_t& t) {
-      return _compare_tuple_detail(not_equals(), t, I());
-    }
+  namespace filters {
+
+    /*
+     * Binary filters.
+     */
+    struct forall_equals {
+      template<class tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
+      bool operator()(const tuple_t &t) const {
+        return detail::_compare_tuple_detail(detail::equals(), t, I());
+      }
+    };
+
+    struct exists_not_equal {
+      template<class tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
+      bool operator()(const tuple_t &t) const {
+        return detail::_compare_tuple_detail(detail::not_equals(), t, I());
+      }
+    };
 
   }
 }

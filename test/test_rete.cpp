@@ -7,6 +7,7 @@
 #include <tuple>
 #include <utility>
 #include <list>
+#include <functional>
 
 #include <caf/all.hpp>
 
@@ -16,14 +17,18 @@
 
 #include <sprincle/rete.hpp>
 
+
 using namespace std;
 using namespace sprincle;
 
 BOOST_AUTO_TEST_SUITE( ReteTestSuite )
 
+/**********************************************************************************************************/
+/* TRIMMERT TESTS*/
 
+//TODO Should generalize this, but freakin hard. Need to get bind working
 template <class Handle, class ChangesIn, class ChangesOut>
-void tester(event_based_actor* self, const Handle& testee, const ChangesIn& changesIn) {
+void trimmer_tester(event_based_actor* self, const Handle& testee, const ChangesIn& changesIn) {
   self->link_to(testee);
   // will be invoked if we receive an unexpected response message
   self->on_sync_failure(
@@ -93,11 +98,63 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
       }
     );
 
-    auto tester_actor = self->spawn(tester<actor, changeset<InputType>, changeset<OutputType>>,
-                              spawn(trimmer<tuple<int, int, int>, 0, 1>::behavior),
+    auto tester_actor = self->spawn(trimmer_tester<actor, changeset<InputType>, changeset<OutputType>>,
+                              spawn(trimmer<InputType, 0, 1>::behavior),
                               changes);
 
     self->await_all_other_actors_done();
+
+}
+/**********************************************************************************************************/
+
+//TODO Here cometh der code duplicatione
+
+template <class Handle, class ChangesIn, class ChangesOut = ChangesIn>
+void filter_tester(event_based_actor* self, const Handle& testee, const ChangesIn& changesIn) {
+  self->link_to(testee);
+  // will be invoked if we receive an unexpected response message
+  self->on_sync_failure(
+    [=] {
+      BOOST_FAIL("Unexpected response message");
+      self->quit(exit_reason::user_shutdown);
+    }
+  );
+  // this is where the assertions happen
+  self->sync_send(testee, changesIn).then([=](const ChangesOut& changesOut){
+
+    BOOST_CHECK(changesOut.positive.size() == 0);
+    BOOST_CHECK(changesOut.negative.size() == 1);
+
+    self->quit(exit_reason::user_shutdown);
+
+  });
+}
+
+BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
+
+
+    scoped_actor self;
+
+    using InputType = tuple<long, long, long>;
+
+    changeset<InputType> changes(
+        //positive
+        vector<InputType>{
+        make_tuple(1,2,3)
+      },
+      //negative
+      vector<InputType>{
+        make_tuple(9,9,9),
+        make_tuple(1,6,3)
+      }
+    );
+
+    auto tester_actor = self->spawn(filter_tester<actor, changeset<InputType>>,
+                                    spawn(filter<InputType, sprincle::filters::forall_equals>::behavior),
+                                    changes);
+
+    self->await_all_other_actors_done();
+
 
 }
 
