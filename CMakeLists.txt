@@ -61,6 +61,7 @@ set(TEST_ARGS --log_level=all)
 
 add_test(NAME DetailTest COMMAND DetailTest ${TEST_ARGS})
 add_test(NAME ReteTest COMMAND ReteTest ${TEST_ARGS})
+add_test(NAME LoadModelTest COMMAND LoadModelTest ${TEST_ARGS})
 
 
 

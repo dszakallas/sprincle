@@ -17,6 +17,7 @@ add_definitions (-DBOOST_TEST_DYN_LINK)
 
 add_executable (DetailTest test_detail.cpp)
 add_executable (ReteTest test_rete.cpp)
+add_executable (LoadModelTest test_load_model.cpp)
 
 set(LD_DIRS
         ${LD_DIRS}
@@ -29,3 +30,4 @@ set(LD_DIRS
 
 target_link_libraries (DetailTest ${LD_DIRS})
 target_link_libraries (ReteTest ${LD_DIRS})
+target_link_libraries (LoadModelTest ${LD_DIRS})
