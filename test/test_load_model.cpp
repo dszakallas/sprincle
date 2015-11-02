@@ -11,6 +11,7 @@
 #include <tuple>
 #include <string>
 #include <utility>
+#include <sstream>
 #include <iostream>
 
 using namespace std;
@@ -34,6 +35,14 @@ decltype(auto) operator<<(std::basic_ostream<Ch, Tr>& os,
   print_tuple_impl(os, t, make_index_sequence<sizeof...(Args)>{});
   return os << ">";
 }
+template<class... Args>
+decltype(auto) tuple_to_str(const std::tuple<Args...>& t) {
+  stringstream str;
+  str << t;
+  str.flush();
+  return str.str();
+}
+
 
 BOOST_AUTO_TEST_SUITE( LoadModelTestSuite )
 
@@ -48,8 +57,14 @@ BOOST_AUTO_TEST_CASE( ShouldLoadRailwayMetamodel ) {
 
     auto triples = sprincle::read_turtle(full_path.string());
 
+    BOOST_CHECK( triples.size() > 0 );
+
+    BOOST_TEST_MESSAGE( "##############");
+    BOOST_TEST_MESSAGE( "TUPLES FOUND: ");
+    BOOST_TEST_MESSAGE( "##############");
+
     for(const auto& triple : triples) {
-      cout << triple << endl;
+      BOOST_TEST_MESSAGE( tuple_to_str(triple) );
     }
 
 }
