@@ -6,6 +6,10 @@ if(CAF_FOUND)
     include_directories(${CAF_INCLUDE_DIRS})
 endif()
 
+if(RAPTOR_FOUND)
+    include_directories(${RAPTOR_INCLUDE_DIRS})
+endif()
+
 add_library(
         Sprincle
         rete.cpp

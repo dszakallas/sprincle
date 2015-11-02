@@ -28,6 +28,8 @@ elseif("${LIBRARY_OUTPUT_PATH}" STREQUAL "")
   set(LIBRARY_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}/lib")
 endif()
 
+set(CMAKE_BUILD_TYPE Debug)
+
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
@@ -58,6 +60,8 @@ add_subdirectory(src)
 add_subdirectory(test)
 enable_testing()
 set(TEST_ARGS --log_level=all)
+
+
 
 add_test(NAME DetailTest COMMAND DetailTest ${TEST_ARGS})
 add_test(NAME ReteTest COMMAND ReteTest ${TEST_ARGS})
