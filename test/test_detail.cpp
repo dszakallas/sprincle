@@ -12,8 +12,7 @@
 #include <utility>
 
 using namespace std;
-using namespace sprincle::detail;
-using namespace sprincle::filters;
+using namespace sprincle;
 
 BOOST_AUTO_TEST_SUITE( DetailTestSuite )
 

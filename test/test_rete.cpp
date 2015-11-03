@@ -21,63 +21,29 @@
 using namespace std;
 using namespace sprincle;
 
-BOOST_AUTO_TEST_SUITE( ReteTestSuite )
-
-/**********************************************************************************************************/
-/* TRIMMERT TESTS*/
-
-//TODO Should generalize this, but freakin hard. Need to get bind working
-template <class Handle, class ChangesIn, class ChangesOut>
-void trimmer_tester(event_based_actor* self, const Handle& testee, const ChangesIn& changesIn) {
+template <class Handle, class Input, class Output, class Test>
+void tester(event_based_actor* self, const Handle& testee, const Input& input, const Test& test) {
   self->link_to(testee);
-  // will be invoked if we receive an unexpected response message
   self->on_sync_failure(
     [=] {
       BOOST_FAIL("Unexpected response message");
       self->quit(exit_reason::user_shutdown);
     }
   );
-  // this is where the assertions happen
-  self->sync_send(testee, changesIn).then([=](const ChangesOut& changesOut){
-
-    BOOST_CHECK(changesIn.positive.size() == changesOut.positive.size());
-
-    auto positives = boost::make_iterator_range(
-      boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.positive), std::begin(changesOut.positive))),
-      boost::make_zip_iterator(boost::make_tuple(std::end(changesIn.positive), std::end(changesOut.positive)))
-    );
-
-    for(auto&& positive : positives) {
-      const auto& in = boost::get<0>(positive);
-      const auto& out = boost::get<1>(positive);
-
-      BOOST_CHECK( get<0>(in) == get<0>(out) );
-      BOOST_CHECK( get<1>(in) == get<1>(out) );
-
-    }
-
-    // Duplication. Make changeset iterable?
-
-    BOOST_CHECK(changesIn.negative.size() == changesOut.negative.size());
-
-    auto negatives = boost::make_iterator_range(
-      boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.negative), std::begin(changesOut.negative))),
-      boost::make_zip_iterator(boost::make_tuple(std::end(changesIn.negative), std::end(changesOut.negative)))
-    );
-
-    for(auto&& negative : negatives) {
-      const auto& in = boost::get<0>(negative);
-      const auto& out = boost::get<1>(negative);
-
-      BOOST_CHECK( get<0>(in) == get<0>(out) );
-      BOOST_CHECK( get<1>(in) == get<1>(out) );
-
-    }
-
+  self->sync_send(testee, input).then([=](const Output& output){
+    test(input, output, testee, self);
     self->quit(exit_reason::user_shutdown);
 
   });
+
 }
+
+BOOST_AUTO_TEST_SUITE( ReteTestSuite )
+
+/**********************************************************************************************************/
+/* TRIMMER TESTS*/
+
+
 
 BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
@@ -98,9 +64,45 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
       }
     );
 
-    auto tester_actor = self->spawn(trimmer_tester<actor, changeset<InputType>, changeset<OutputType>>,
+    auto assertions = [](const changeset<InputType>& changesIn, const changeset<OutputType>& changesOut, const actor& testee, event_based_actor*) {
+      BOOST_CHECK(changesIn.positive.size() == changesOut.positive.size());
+
+      auto positives = boost::make_iterator_range(
+        boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.positive), std::begin(changesOut.positive))),
+        boost::make_zip_iterator(boost::make_tuple(std::end(changesIn.positive), std::end(changesOut.positive)))
+      );
+
+      for(auto&& positive : positives) {
+        const auto& in = boost::get<0>(positive);
+        const auto& out = boost::get<1>(positive);
+
+        BOOST_CHECK( get<0>(in) == get<0>(out) );
+        BOOST_CHECK( get<1>(in) == get<1>(out) );
+
+      }
+
+      // Duplication. Make changeset iterable?
+
+      BOOST_CHECK(changesIn.negative.size() == changesOut.negative.size());
+
+      auto negatives = boost::make_iterator_range(
+        boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.negative), std::begin(changesOut.negative))),
+        boost::make_zip_iterator(boost::make_tuple(std::end(changesIn.negative), std::end(changesOut.negative)))
+      );
+
+      for(auto&& negative : negatives) {
+        const auto& in = boost::get<0>(negative);
+        const auto& out = boost::get<1>(negative);
+
+        BOOST_CHECK( get<0>(in) == get<0>(out) );
+        BOOST_CHECK( get<1>(in) == get<1>(out) );
+
+      }
+    };
+
+    auto tester_actor = self->spawn(tester<actor, changeset<InputType>, changeset<OutputType>, decltype(assertions)>,
                               spawn(trimmer<InputType, 0, 1>::behavior),
-                              changes);
+                              changes, assertions);
 
     self->await_all_other_actors_done();
 
@@ -150,7 +152,7 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
     );
 
     auto tester_actor = self->spawn(filter_tester<actor, changeset<InputType>>,
-                                    spawn(filter<InputType, sprincle::filters::forall_equals>::behavior),
+                                    spawn(filter<InputType, sprincle::forall_equals>::behavior),
                                     changes);
 
     self->await_all_other_actors_done();

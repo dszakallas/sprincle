@@ -21,14 +21,15 @@
 
 using namespace std;
 using namespace caf;
-using namespace sprincle::detail;
 
 namespace sprincle {
 
   template<typename tuple_t>
   struct changeset {
 
-    using changeset_t = vector<tuple_t>;
+    using change_t = tuple_t;
+    using changeset_t = vector<change_t>;
+
 
     changeset_t positive;
     changeset_t negative;
@@ -63,16 +64,16 @@ namespace sprincle {
       return caf::behavior {
         [=](const changeset<tuple_t>& changes) {
 
-          auto insert = [](auto&& to, const auto& from) {
+          auto insert = [](auto& to, const auto& from) {
             auto i = 0;
-            for (auto&& tuple : from) {
+            for (const auto& tuple : from) {
               to[i] = project<I...>(tuple);
               ++i;
             }
           };
 
-          using projected_t = decltype(project<I...>(declval<tuple_t>()));
-          using projected_changeset_t = typename changeset<projected_t>::changeset_t;
+          using projected_change_t = decltype(project<I...>(declval<typename changeset<tuple_t>::change_t>()));
+          using projected_changeset_t = typename changeset<projected_change_t>::changeset_t;
 
           projected_changeset_t positives(changes.positive.size());
           projected_changeset_t negatives(changes.negative.size());
@@ -80,7 +81,7 @@ namespace sprincle {
           insert(positives, changes.positive);
           insert(negatives, changes.negative);
 
-          return changeset<tuple<typename tuple_element<I, tuple_t>::type...>>(move(positives), move(negatives));
+          return changeset<projected_change_t>(move(positives), move(negatives));
         },
         others >> [=] {
           //TODO: Print error
@@ -104,7 +105,7 @@ namespace sprincle {
             boost::make_filter_iterator<predicate_t>(end(changes.positive), end(changes.positive))
           );
 
-          for(auto&& good_one : good_positives)
+          for(const auto& good_one : good_positives)
             filtered.positive.push_back(good_one);
 
           auto good_negatives = boost::make_iterator_range(
@@ -112,7 +113,7 @@ namespace sprincle {
             boost::make_filter_iterator<predicate_t>(end(changes.negative), end(changes.negative))
           );
 
-          for(auto&& good_one : good_negatives)
+          for(const auto& good_one : good_negatives)
             filtered.negative.push_back(good_one);
 
           return filtered;

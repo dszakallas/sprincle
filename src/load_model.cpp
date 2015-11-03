@@ -105,7 +105,7 @@ namespace {
 
   string raptor_log_level_to_str(raptor_log_level log_level) {
 
-    std:string str { "" };
+    string str { "" };
 
     switch (log_level) {
       case RAPTOR_LOG_LEVEL_NONE:                 break;
