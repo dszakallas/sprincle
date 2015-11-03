@@ -13,7 +13,10 @@ endif()
 
 add_definitions (-DBOOST_TEST_DYN_LINK)
 
+set(TEST_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
+configure_file(test_config.h.in test_config.h @ONLY)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable (DetailTest test_detail.cpp)
 add_executable (ReteTest test_rete.cpp)

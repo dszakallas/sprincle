@@ -1,0 +1,10 @@
+//
+// Created by david on 11/3/15.
+//
+
+#ifndef SPRINCLE_TEST_CONFIG_H
+#define SPRINCLE_TEST_CONFIG_H
+
+#define SPRINCLE_TEST_ROOT "@TEST_ROOT_PATH@"
+
+#endif //SPRINCLE_TEST_CONFIG_H

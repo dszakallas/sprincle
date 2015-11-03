@@ -7,6 +7,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/filesystem.hpp>
 #include <sprincle/load_model.h>
+#include "test_config.h"
 
 #include <tuple>
 #include <string>
@@ -49,11 +50,11 @@ BOOST_AUTO_TEST_SUITE( LoadModelTestSuite )
 BOOST_AUTO_TEST_CASE( ShouldLoadRailwayMetamodel ) {
 
     //TODO EDIT THIS
-    fs::path root("/home/david/Projects/sprincle");
+    fs::path root(SPRINCLE_TEST_ROOT);
 
-    fs::path railway_metamodel_file("test/resources/railway-metamodel.ttl");
+    fs::path metamodel_file("/resources/railway-metamodel.ttl");
 
-    fs::path full_path = root / railway_metamodel_file;
+    fs::path full_path = root / metamodel_file;
 
     auto triples = sprincle::read_turtle(full_path.string());
 
@@ -68,5 +69,28 @@ BOOST_AUTO_TEST_CASE( ShouldLoadRailwayMetamodel ) {
     }
 
 }
+
+  BOOST_AUTO_TEST_CASE( ShouldLoadRouteSensorMetamodel ) {
+
+    //TODO EDIT THIS
+    fs::path root(SPRINCLE_TEST_ROOT);
+
+    fs::path metamodel_file("/resources/railway_minimal_routesensor_metamodel.ttl");
+
+    fs::path full_path = root / metamodel_file;
+
+    auto triples = sprincle::read_turtle(full_path.string());
+
+    BOOST_CHECK( triples.size() > 0 );
+
+    BOOST_TEST_MESSAGE( "##############");
+    BOOST_TEST_MESSAGE( "TUPLES FOUND: ");
+    BOOST_TEST_MESSAGE( "##############");
+
+    for(const auto& triple : triples) {
+      BOOST_TEST_MESSAGE( tuple_to_str(triple) );
+    }
+
+  }
 BOOST_AUTO_TEST_SUITE_END()
 
