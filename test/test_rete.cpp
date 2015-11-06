@@ -21,6 +21,16 @@
 using namespace std;
 using namespace sprincle;
 
+/**
+ * The tester function can be used to test actors.
+ * It will send the given input to the testee, then runs the given assertion function
+ * on the message returned.
+ * The signature of the assertion function should be
+ * <unspecified>(const Input&, const Output&, const actor&, event_based_actor*)
+ *   ^                                              ^              ^
+ *   |                                              |              |
+ *   *- Arbitrary return type               testee -*      tester -*
+ */
 template <class Handle, class Input, class Output, class Test>
 void tester(event_based_actor* self, const Handle& testee, const Input& input, const Test& test) {
   self->link_to(testee);
@@ -43,8 +53,6 @@ BOOST_AUTO_TEST_SUITE( ReteTestSuite )
 /**********************************************************************************************************/
 /* TRIMMER TESTS*/
 
-
-
 BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
     scoped_actor self;
@@ -52,7 +60,7 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
     using InputType = tuple<int, int, int>;
     using OutputType = tuple<int, int>;
 
-    changeset<InputType> changes(
+    delta<InputType> changes(
       //positive
       vector<InputType>{
         make_tuple(1,2,3)
@@ -64,7 +72,7 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
       }
     );
 
-    auto assertions = [](const changeset<InputType>& changesIn, const changeset<OutputType>& changesOut, const actor& testee, event_based_actor*) {
+    auto assertions = [](const delta<InputType>& changesIn, const delta<OutputType>& changesOut, const actor&, event_based_actor*) {
       BOOST_CHECK(changesIn.positive.size() == changesOut.positive.size());
 
       auto positives = boost::make_iterator_range(
@@ -100,7 +108,7 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
       }
     };
 
-    auto tester_actor = self->spawn(tester<actor, changeset<InputType>, changeset<OutputType>, decltype(assertions)>,
+    auto tester_actor = self->spawn(tester<actor, delta<InputType>, delta<OutputType>, decltype(assertions)>,
                               spawn(trimmer<InputType, 0, 1>::behavior),
                               changes, assertions);
 
@@ -108,29 +116,7 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
 }
 /**********************************************************************************************************/
-
-//TODO Here cometh der code duplicatione
-
-template <class Handle, class ChangesIn, class ChangesOut = ChangesIn>
-void filter_tester(event_based_actor* self, const Handle& testee, const ChangesIn& changesIn) {
-  self->link_to(testee);
-  // will be invoked if we receive an unexpected response message
-  self->on_sync_failure(
-    [=] {
-      BOOST_FAIL("Unexpected response message");
-      self->quit(exit_reason::user_shutdown);
-    }
-  );
-  // this is where the assertions happen
-  self->sync_send(testee, changesIn).then([=](const ChangesOut& changesOut){
-
-    BOOST_CHECK(changesOut.positive.size() == 0);
-    BOOST_CHECK(changesOut.negative.size() == 1);
-
-    self->quit(exit_reason::user_shutdown);
-
-  });
-}
+/* FILTER TESTS*/
 
 BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
 
@@ -138,8 +124,9 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
     scoped_actor self;
 
     using InputType = tuple<long, long, long>;
+    using OutputType = InputType;
 
-    changeset<InputType> changes(
+    delta<InputType> changes(
         //positive
         vector<InputType>{
         make_tuple(1,2,3)
@@ -151,12 +138,56 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
       }
     );
 
-    auto tester_actor = self->spawn(filter_tester<actor, changeset<InputType>>,
-                                    spawn(filter<InputType, sprincle::forall_equals>::behavior),
-                                    changes);
+    auto assertions = [](const delta<InputType>&, const delta<OutputType>& changesOut, const actor&, event_based_actor*){
+      BOOST_CHECK(changesOut.positive.size() == 0);
+      BOOST_CHECK(changesOut.negative.size() == 1);
+    };
+
+    auto tester_actor = self->spawn(tester<actor, delta<InputType>, delta<OutputType>, decltype(assertions)>,
+                                    spawn(filter<InputType, sprincle::forall_equals>::behavior, sprincle::forall_equals()),
+                                    changes, assertions);
 
     self->await_all_other_actors_done();
 
+}
+
+/**
+ * Test Predicate Evaluator Node
+ */
+BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
+
+
+  scoped_actor self;
+
+  using InputType = tuple<long, long, long>;
+  using OutputType = InputType;
+
+  delta<InputType> changes(
+    //positive
+    vector<InputType>{
+    make_tuple(1,2,3)
+  },
+  //negative
+  vector<InputType>{
+    make_tuple(9,9,9),
+    make_tuple(1,6,3)
+  }
+  );
+
+
+  auto assertions = [](const delta<InputType>&, const delta<OutputType>& changesOut, const actor&, event_based_actor*){
+    BOOST_CHECK( changesOut.positive.size() == 1 );
+    BOOST_CHECK( changesOut.negative.size() == 0 );
+
+    BOOST_CHECK( changesOut.positive[0] == make_tuple(1,2,3) );
+  };
+
+
+  auto tester_actor = self->spawn(tester<actor, delta<InputType>, delta<OutputType>, decltype(assertions)>,
+                                  spawn(filter<InputType, sprincle::exactly<InputType>>::behavior, exactly<InputType>(make_tuple(1,2,3))),
+                                  changes, assertions);
+
+  self->await_all_other_actors_done();
 
 }
 

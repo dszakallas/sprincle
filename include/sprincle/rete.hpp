@@ -22,47 +22,56 @@
 using namespace std;
 using namespace caf;
 
+namespace {
+
+  template<class predicate_t, class vector_t>
+  decltype(auto) filter_impl(predicate_t&& p, vector_t&& v) noexcept {
+
+    auto good = boost::make_iterator_range(
+      boost::filter_iterator<predicate_t, decltype(begin(forward<vector_t>(v)))>
+        (forward<predicate_t>(p), begin(forward<vector_t>(v)), end(forward<vector_t>(v))),
+      boost::filter_iterator<predicate_t, decltype(begin(forward<vector_t>(v)))>
+        (forward<predicate_t>(p), end(forward<vector_t>(v)), end(forward<vector_t>(v)))
+    );
+
+    return remove_reference_t<vector_t>(good.begin(), good.end());
+  };
+
+}
+
 namespace sprincle {
 
+  /*
+   * delta class. Container.
+   * Implemented concepts are: TMC, TMA, TCC, TCA, DC
+   */
   template<typename tuple_t>
-  struct changeset {
+  struct delta {
 
     using change_t = tuple_t;
     using changeset_t = vector<change_t>;
 
-
     changeset_t positive;
     changeset_t negative;
 
-    changeset(): positive(), negative() {};
+    delta() : positive(), negative() {}
 
-    changeset(changeset&& o):
-      positive(forward<decltype(o.positive)>(o.positive)),
-      negative(forward<decltype(o.negative)>(o.negative))
-    {}
-
-    changeset(const changeset& o):
-      positive(o.positive),
-      negative(o.negative)
-    {}
-
-    changeset(changeset_t&& p, changeset_t&& n) :
-      positive(forward<changeset_t>(p)),
-      negative(forward<changeset_t>(n))
-    {}
-
-    changeset(const changeset_t& p, const changeset_t& n) :
-      positive(p),
-      negative(n)
+    template<typename other_changeset_t>
+    delta(other_changeset_t&& p, other_changeset_t&& n) :
+      positive(forward<other_changeset_t>(p)),
+      negative(forward<other_changeset_t>(n))
     {}
 
   };
 
+  /*
+   * Can be a Trimmer Node
+   */
   template<typename tuple_t, size_t... I>
   struct trimmer {
     static decltype(auto) behavior(event_based_actor* self) {
       return caf::behavior {
-        [=](const changeset<tuple_t>& changes) {
+        [=](const delta<tuple_t>& changes) {
 
           auto insert = [](auto& to, const auto& from) {
             auto i = 0;
@@ -72,8 +81,8 @@ namespace sprincle {
             }
           };
 
-          using projected_change_t = decltype(project<I...>(declval<typename changeset<tuple_t>::change_t>()));
-          using projected_changeset_t = typename changeset<projected_change_t>::changeset_t;
+          using projected_change_t = decltype(project<I...>(declval<typename delta<tuple_t>::change_t>()));
+          using projected_changeset_t = typename delta<projected_change_t>::changeset_t;
 
           projected_changeset_t positives(changes.positive.size());
           projected_changeset_t negatives(changes.negative.size());
@@ -81,42 +90,29 @@ namespace sprincle {
           insert(positives, changes.positive);
           insert(negatives, changes.negative);
 
-          return changeset<projected_change_t>(move(positives), move(negatives));
+          return delta<projected_change_t>(move(positives), move(negatives));
         },
         others >> [=] {
           //TODO: Print error
         }
       };
-
     }
-
   };
 
+
+  /*
+   * Can be an Equality Node, Inequality Node and Predicate Evaluator
+   */
   template<class tuple_t, class predicate_t>
   struct filter {
-    static decltype(auto) behavior(event_based_actor* self) {
+    static decltype(auto) behavior(event_based_actor* self, const predicate_t& predicate) {
       return caf::behavior {
-        [=](const changeset<tuple_t>& changes) {
+        [=](const delta<tuple_t>& changes) {
 
-          changeset<tuple_t> filtered;
-
-          auto good_positives = boost::make_iterator_range(
-            boost::make_filter_iterator<predicate_t>(begin(changes.positive), end(changes.positive)),
-            boost::make_filter_iterator<predicate_t>(end(changes.positive), end(changes.positive))
+          return delta<tuple_t>(
+            filter_impl(predicate, changes.positive),
+            filter_impl(predicate, changes.negative)
           );
-
-          for(const auto& good_one : good_positives)
-            filtered.positive.push_back(good_one);
-
-          auto good_negatives = boost::make_iterator_range(
-            boost::make_filter_iterator<predicate_t>(begin(changes.negative), end(changes.negative)),
-            boost::make_filter_iterator<predicate_t>(end(changes.negative), end(changes.negative))
-          );
-
-          for(const auto& good_one : good_negatives)
-            filtered.negative.push_back(good_one);
-
-          return filtered;
 
         },
         others >> [=] {
@@ -126,9 +122,6 @@ namespace sprincle {
     };
 
   };
-
-
-
 }
 
 

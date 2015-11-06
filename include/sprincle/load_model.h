@@ -12,6 +12,7 @@ using namespace std;
 
 namespace sprincle {
   vector<tuple<string, string, string>> read_turtle(string filename);
+  vector<tuple<string, string, string>> read_ntriples(string filename);
 }
 
 

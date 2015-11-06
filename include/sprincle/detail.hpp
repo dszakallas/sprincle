@@ -15,17 +15,29 @@ using namespace std;
 namespace {
 
   template<class T1, class T2>
-  bool equals_impl(T1&& t1, T2&& t2);
+  bool equals_impl(T1&& t1, T2&& t2) noexcept;
 
-  template<class comparator_t, class T1, class T2>
-  bool compare_tuple_impl(comparator_t&& compare, T1&& t1, T2&& t2);
+
+
+  //Compare elements of a single tuple helpers
+  template<class comparator_t, class tuple_t, size_t... I>
+  bool compare_elements_detail(comparator_t&& compare, tuple_t&& t, index_sequence<I...>) noexcept;
 
   template<class comparator_t, class T1, class T2, class... Ts>
-  bool compare_tuple_impl(comparator_t&& compare, T1&& t1, T2&& t2, Ts&&... ts);
+  bool compare_elements_impl(comparator_t&& compare, T1&& t1, T2&& t2, Ts&&... ts) noexcept;
 
-  //Helper, expands the indexes into a parameter pack
-  template<class comparator_t, class tuple_t, size_t... I>
-  bool compare_tuple_detail(comparator_t&& compare, tuple_t&& t, index_sequence<I...>);
+  template<class comparator_t, class T1, class T2>
+  bool compare_elements_impl(comparator_t&& compare, T1&& t1, T2&& t2) noexcept;
+
+  //Compare two tuples element-by-element helpers
+  template<class comparator_t, class left_tuple_t, class right_tuple_t, size_t... I>
+  bool compare_tuples_detail(comparator_t&& compare, left_tuple_t&& left_t, right_tuple_t&& right_t, index_sequence<I...>) noexcept;
+
+  template<class comparator_t, class element_pair_t, class... element_pairs_t>
+  bool compare_tuples_impl(comparator_t&& compare, element_pair_t&& t, element_pairs_t&&... ts) noexcept;
+
+  template<class comparator_t, class element_pair_t>
+  bool compare_tuples_impl(comparator_t&& compare, element_pair_t&& t) noexcept;
 
 }
 
@@ -33,67 +45,109 @@ namespace {
 namespace sprincle {
 
   template<size_t... Indices, class tuple_t>
-  decltype(auto) project(const tuple_t& t) {
+  decltype(auto) project(const tuple_t& t) noexcept {
     return tuple<typename tuple_element<Indices, tuple_t>::type...>(get<Indices>(t)...);
   }
 
   struct equals {
     template<class T1, class T2>
-    bool operator()(T1&& t1, T2&& t2) const {
+    bool operator()(T1&& t1, T2&& t2) const noexcept {
       return equals_impl(forward<T1>(t1), forward<T2>(t2));
     }
   };
 
   struct not_equals {
     template<class T1, class T2>
-    bool operator()(T1&& t1, T2&& t2) const {
+    bool operator()(T1&& t1, T2&& t2) const noexcept {
       return !equals_impl(forward<T1>(t1), forward<T2>(t2));
     }
   };
 
   /*
   * Binary filters.
+  * Functor
   */
   struct forall_equals {
     template<class tuple_t, class I = make_index_sequence<tuple_size<remove_reference_t<tuple_t>>::value>>
-    bool operator()(tuple_t&& t) const {
-      return compare_tuple_detail(equals(), forward<tuple_t>(t), I());
+    bool operator()(tuple_t&& t) const noexcept {
+      return compare_elements_detail(equals(), forward<tuple_t>(t), I());
     }
   };
 
   struct exists_not_equal {
     template<class tuple_t, class I = make_index_sequence<tuple_size<remove_reference_t<tuple_t>>::value>>
-    bool operator()(tuple_t&& t) const {
-      return compare_tuple_detail(not_equals(), forward<tuple_t>(t), I());
+    bool operator()(tuple_t&& t) const noexcept {
+      return compare_elements_detail(not_equals(), forward<tuple_t>(t), I());
     }
   };
+
+
+  /*
+   * Predicate filter.
+   * Concepts: TMC, TMA, TCC, TCA, Functor
+   */
+  template<class tuple_t>
+  struct exactly {
+
+    tuple_t expected;
+
+    exactly(tuple_t&& expected) : expected(expected) {}
+    exactly(const tuple_t& expected) : expected(expected) {}
+
+    template<class actual_tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
+    bool operator()(actual_tuple_t&& actual) const noexcept {
+      //static_assert(tuple_size<tuple_t>::value == tuple_size<decltype(actual)>::value, "Size of the compared tuples don't match");
+      return compare_tuples_detail(equals(), expected, forward<actual_tuple_t>(actual), I());
+    }
+  };
+
+
 
 }
 
 namespace {
 
   template<class T1, class T2>
-  bool equals_impl(T1&& t1, T2&& t2) {
+  bool equals_impl(T1&& t1, T2&& t2) noexcept {
     return t1 == t2;
   };
 
-  template<class comparator_t, class T1, class T2>
-  bool compare_tuple_impl(comparator_t&& compare, T1&& t1, T2&& t2) {
-    return compare(forward<T1>(t1), forward<T1>(t2));
-  };
-
-  //Helper, recursively compares to elements with
-  //the comparator.
-  template<class comparator_t, class T1, class T2, class... Ts>
-  bool compare_tuple_impl(comparator_t&& compare, T1&& t1, T2&& t2, Ts&&... ts) {
-    if (!compare(forward<T1>(t1), forward<T2>(t2))) return false;
-    return compare_tuple_impl(forward<comparator_t>(compare), forward<T1>(t1), forward<Ts>(ts)...);
+  //Compare elements of a single tuple helpers
+  template<class comparator_t, class tuple_t, size_t... I>
+  bool compare_elements_detail(comparator_t&& compare, tuple_t&& t, index_sequence<I...>) noexcept {
+    return compare_elements_impl(forward<comparator_t>(compare), get<I>(forward<tuple_t>(t))...);
   }
 
-  //Helper, expands the indexes into a parameter pack
-  template<class comparator_t, class tuple_t, size_t... I>
-  bool compare_tuple_detail(comparator_t&& compare, tuple_t&& t, index_sequence<I...>) {
-    return compare_tuple_impl(forward<comparator_t>(compare), get<I>(forward<tuple_t>(t))...);
+  template<class comparator_t, class T1, class T2, class... Ts>
+  bool compare_elements_impl(comparator_t&& compare, T1&& t1, T2&& t2, Ts&&... ts) noexcept {
+    if (!compare(forward<T1>(t1), forward<T2>(t2))) return false;
+    return compare_elements_impl(forward<comparator_t>(compare), forward<T1>(t1), forward<Ts>(ts)...);
+  }
+
+  template<class comparator_t, class T1, class T2>
+  bool compare_elements_impl(comparator_t&& compare, T1&& t1, T2&& t2) noexcept {
+    return compare(forward<T1>(t1), forward<T1>(t2));
+  }
+
+  //Compare two tuples element-by-element helpers
+  //Trust me u dont want to read these...
+  template<class comparator_t, class left_tuple_t, class right_tuple_t, size_t... I>
+  bool compare_tuples_detail(comparator_t&& compare, left_tuple_t&& left_t, right_tuple_t&& right_t, index_sequence<I...>) noexcept {
+    return compare_tuples_impl(forward<comparator_t>(compare),
+                               make_tuple(
+                                 get<I>(forward<left_tuple_t>(left_t)),
+                                 get<I>(forward<right_tuple_t>(right_t)))...);
+  }
+
+  template<class comparator_t, class element_pair_t, class... element_pairs_t>
+  bool compare_tuples_impl(comparator_t&& compare, element_pair_t&& t, element_pairs_t&&... ts) noexcept {
+    if (!compare(get<0>(forward<element_pair_t>(t)), get<1>(forward<element_pair_t>(t)))) return false;
+    return compare_tuples_impl(forward<comparator_t>(compare), forward<element_pairs_t>(ts)...);
+  }
+
+  template<class comparator_t, class element_pair_t>
+  bool compare_tuples_impl(comparator_t&& compare, element_pair_t&& t) noexcept {
+    return compare(get<0>(forward<element_pair_t>(t)), get<1>(forward<element_pair_t>(t)));
   }
 
 }
