@@ -6,7 +6,7 @@
 
 #include <boost/test/unit_test.hpp>
 #include <boost/filesystem.hpp>
-#include <sprincle/load_model.h>
+#include "load_model.h"
 #include "test_config.h"
 
 #include <tuple>
@@ -49,8 +49,7 @@ BOOST_AUTO_TEST_SUITE( LoadModelTestSuite )
 
 BOOST_AUTO_TEST_CASE( ShouldLoadRailwayMetamodel ) {
 
-    //TODO EDIT THIS
-    fs::path root(SPRINCLE_TEST_ROOT);
+    fs::path root(TRAINBENCHMARK_ROOT);
 
     fs::path metamodel_file("/resources/railway-metamodel.ttl");
 
@@ -73,7 +72,7 @@ BOOST_AUTO_TEST_CASE( ShouldLoadRailwayMetamodel ) {
   BOOST_AUTO_TEST_CASE( ShouldLoadRouteSensorMetamodel ) {
 
     //TODO EDIT THIS
-    fs::path root(SPRINCLE_TEST_ROOT);
+    fs::path root(TRAINBENCHMARK_ROOT);
 
     fs::path metamodel_file("/resources/railway_minimal_routesensor_metamodel.ttl");
 

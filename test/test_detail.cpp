@@ -133,4 +133,25 @@ BOOST_AUTO_TEST_CASE( Exactly_2 )
   BOOST_CHECK( the_same );
 
 }
+
+BOOST_AUTO_TEST_CASE( Match_Pair_1 )
+{
+  match_pair<2,3> match;
+
+  BOOST_CHECK( decltype(match)::primary == 2 );
+  BOOST_CHECK( decltype(match)::secondary == 3 );
+}
+
+BOOST_AUTO_TEST_CASE( Match_Pair_2 )
+{
+  match_pair<0,1> match_0;
+  match_pair<2,3> match_1;
+
+  auto t = std::make_tuple(1, 1, 2, 2);
+
+  auto e = match<decltype(t), decltype(t), match_pair<0,1>, match_pair<2,3>>(t, t);
+
+
+  BOOST_CHECK( e );
+}
 BOOST_AUTO_TEST_SUITE_END()

@@ -8,7 +8,7 @@
 #include <tuple>
 #include <iostream>
 #include <sstream>
-#include <sprincle/load_model.h>
+#include "load_model.h"
 
 using namespace std;
 using namespace sprincle;

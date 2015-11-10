@@ -13,7 +13,7 @@ endif()
 add_library(
         Sprincle
         rete.cpp
-        load_model.cpp
+        ../trainbenchmark/load_model.cpp
 )
 target_link_libraries (
         Sprincle

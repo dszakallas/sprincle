@@ -59,13 +59,15 @@ include_directories(include)
 add_subdirectory(src)
 add_subdirectory(test)
 add_subdirectory(trainbenchmark)
+
 enable_testing()
 set(TEST_ARGS --log_level=all)
 
 
-
 add_test(NAME DetailTest COMMAND DetailTest ${TEST_ARGS})
 add_test(NAME ReteTest COMMAND ReteTest ${TEST_ARGS})
+
+## This is from trainbenchmark
 add_test(NAME LoadModelTest COMMAND LoadModelTest ${TEST_ARGS})
 
 

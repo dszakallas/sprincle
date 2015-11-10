@@ -11,6 +11,7 @@
 #include <utility>
 #include <algorithm>
 #include <iostream>
+#include <map>
 
 #include <boost/iterator/filter_iterator.hpp>
 #include <boost/range.hpp>
@@ -64,6 +65,19 @@ namespace sprincle {
 
   };
 
+  template<
+    class primary_key_t,
+    class primary_value_t,
+    class secondary_key_t,
+    class secondary_value_t
+  >
+  struct memory {
+
+    multimap<primary_key_t, primary_value_t> primary_store;
+    multimap<secondary_key_t, secondary_value_t> secondary_store;
+
+  };
+
   template<class tuple_t, class map_t>
   struct map {
     static decltype(auto) behavior(event_based_actor* self, const map_t& map) noexcept {
@@ -114,6 +128,61 @@ namespace sprincle {
     };
 
   };
+
+
+
+  using primary_atom = caf::atom_constant<caf::atom("primary")>;
+  using secondary_atom = caf::atom_constant<caf::atom("secondary")>;
+
+  template<class primary_tuple_t, class secondary_tuple_t, class... match_pairs>
+  struct join :
+    public event_based_actor,
+    public memory<
+      typename project<(match_pairs::primary)...>::projected_t<primary_tuple_t>,
+      primary_tuple_t,
+      typename project<(match_pairs::secondary)...>::projected_t<secondary_tuple_t>,
+      secondary_tuple_t
+    > {
+
+    using primary_match_t = project<(match_pairs::primary)...>::projected_t<primary_tuple_t>;
+    using secondary_match_t = project<(match_pairs::secondary)...>::projected_t<secondary_tuple_t>;
+
+    project<(match_pairs::primary)...> primary_match;
+    project<(match_pairs::secondary)...> secondary_match;
+
+
+    caf::behavior make_behavior() override {
+      return {
+        [=](primary_atom, const delta<primary_tuple_t>& primaries) noexcept {
+
+          const auto& negatives = primaries.negative;
+          const auto& positives = primaries.positive;
+
+          delta<primary_tuple_t> result;
+
+          for(const auto& negative: negatives)
+            primary_store.erase(primary_match(negative));
+
+          for(const auto& positive: positives)
+            primary_store.insert(make_pair(primary_match(positive), positive));
+
+          // TODO
+
+
+
+        },
+        [=](secondary_atom, const delta<secondary_tuple_t>& secondaries) noexcept {
+
+          //TODO
+
+        },
+        others >> [=] {
+          //TODO: Print error
+        }
+      };
+    }
+  };
+
 }
 
 

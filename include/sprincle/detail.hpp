@@ -57,6 +57,23 @@ namespace sprincle {
     }
   };
 
+  /*
+   * Match selectors for joins
+   */
+  template<size_t primary_t, size_t secondary_t>
+  struct match_pair {
+    enum {
+      primary = primary_t,
+      secondary = secondary_t
+    };
+  };
+
+  //TODO: Generalize to universal reference
+  template<class primary_t, class secondary_t, class... match_pairs>
+  decltype(auto) match(const primary_t& primary, const secondary_t& secondary) noexcept {
+    return project<(match_pairs::primary)...>()(primary) == project<(match_pairs::secondary)...>()(secondary);
+  }
+
   namespace {
     template<size_t... Indices>
     decltype(auto) make_project_helper(index_sequence<Indices...>) noexcept {
@@ -68,8 +85,6 @@ namespace sprincle {
   decltype(auto) make_project() noexcept {
     return make_project_helper(Is());
   }
-
-
 
 
   struct equals {

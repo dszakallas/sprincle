@@ -13,14 +13,9 @@ endif()
 
 add_definitions (-DBOOST_TEST_DYN_LINK)
 
-set(TEST_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
-
-configure_file(test_config.h.in test_config.h @ONLY)
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable (DetailTest test_detail.cpp)
 add_executable (ReteTest test_rete.cpp)
-add_executable (LoadModelTest test_load_model.cpp)
 
 set(LD_DIRS
         ${LD_DIRS}
@@ -33,4 +28,3 @@ set(LD_DIRS
 
 target_link_libraries (DetailTest ${LD_DIRS})
 target_link_libraries (ReteTest ${LD_DIRS})
-target_link_libraries (LoadModelTest ${LD_DIRS})
