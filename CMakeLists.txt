@@ -58,6 +58,7 @@ include_directories(include)
 
 add_subdirectory(src)
 add_subdirectory(test)
+add_subdirectory(trainbenchmark)
 enable_testing()
 set(TEST_ARGS --log_level=all)
 
