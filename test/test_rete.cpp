@@ -16,7 +16,7 @@
 #include <boost/range.hpp>
 
 #include <sprincle/rete.hpp>
-
+#include <sprincle/detail.hpp>
 
 using namespace std;
 using namespace sprincle;
@@ -55,10 +55,11 @@ BOOST_AUTO_TEST_SUITE( ReteTestSuite )
 
 BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
-    scoped_actor self;
-
     using InputType = tuple<int, int, int>;
-    using OutputType = tuple<int, int>;
+
+    auto removeLast = sprincle::project<0, 1>();
+
+    using OutputType = decltype(removeLast)::projected_t<InputType>;
 
     delta<InputType> changes(
       //positive
@@ -89,8 +90,6 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
       }
 
-      // Duplication. Make changeset iterable?
-
       BOOST_CHECK(changesIn.negative.size() == changesOut.negative.size());
 
       auto negatives = boost::make_iterator_range(
@@ -108,8 +107,10 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
       }
     };
 
+    scoped_actor self;
+
     auto tester_actor = self->spawn(tester<actor, delta<InputType>, delta<OutputType>, decltype(assertions)>,
-                              spawn(trimmer<InputType, 0, 1>::behavior),
+                              spawn(sprincle::map<InputType, decltype(removeLast)>::behavior, removeLast),
                               changes, assertions);
 
     self->await_all_other_actors_done();
@@ -118,33 +119,35 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 /**********************************************************************************************************/
 /* FILTER TESTS*/
 
+
+/*
+ * Tests
+ */
 BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
 
+    using ChangeType = tuple<long, long, long>;
 
-    scoped_actor self;
-
-    using InputType = tuple<long, long, long>;
-    using OutputType = InputType;
-
-    delta<InputType> changes(
+    delta<ChangeType> changes(
         //positive
-        vector<InputType>{
+        vector<ChangeType>{
         make_tuple(1,2,3)
       },
       //negative
-      vector<InputType>{
+      vector<ChangeType>{
         make_tuple(9,9,9),
         make_tuple(1,6,3)
       }
     );
 
-    auto assertions = [](const delta<InputType>&, const delta<OutputType>& changesOut, const actor&, event_based_actor*){
+    auto assertions = [](const delta<ChangeType>&, const delta<ChangeType>& changesOut, const actor&, event_based_actor*){
       BOOST_CHECK(changesOut.positive.size() == 0);
       BOOST_CHECK(changesOut.negative.size() == 1);
     };
 
-    auto tester_actor = self->spawn(tester<actor, delta<InputType>, delta<OutputType>, decltype(assertions)>,
-                                    spawn(filter<InputType, sprincle::forall_equals>::behavior, sprincle::forall_equals()),
+    scoped_actor self;
+
+    auto tester_actor = self->spawn(tester<actor, delta<ChangeType>, delta<ChangeType>, decltype(assertions)>,
+                                    spawn(filter<ChangeType, sprincle::forall_equals>::behavior, sprincle::forall_equals()),
                                     changes, assertions);
 
     self->await_all_other_actors_done();
@@ -156,35 +159,32 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
  */
 BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
 
+  using ChangeType = tuple<long, long, long>;
 
-  scoped_actor self;
-
-  using InputType = tuple<long, long, long>;
-  using OutputType = InputType;
-
-  delta<InputType> changes(
+  delta<ChangeType> changes(
     //positive
-    vector<InputType>{
+    vector<ChangeType>{
     make_tuple(1,2,3)
   },
   //negative
-  vector<InputType>{
+  vector<ChangeType>{
     make_tuple(9,9,9),
     make_tuple(1,6,3)
   }
   );
 
 
-  auto assertions = [](const delta<InputType>&, const delta<OutputType>& changesOut, const actor&, event_based_actor*){
+  auto assertions = [](const delta<ChangeType>&, const delta<ChangeType>& changesOut, const actor&, event_based_actor*){
     BOOST_CHECK( changesOut.positive.size() == 1 );
     BOOST_CHECK( changesOut.negative.size() == 0 );
 
     BOOST_CHECK( changesOut.positive[0] == make_tuple(1,2,3) );
   };
 
+  scoped_actor self;
 
-  auto tester_actor = self->spawn(tester<actor, delta<InputType>, delta<OutputType>, decltype(assertions)>,
-                                  spawn(filter<InputType, sprincle::exactly<InputType>>::behavior, exactly<InputType>(make_tuple(1,2,3))),
+  auto tester_actor = self->spawn(tester<actor, delta<ChangeType>, delta<ChangeType>, decltype(assertions)>,
+                                  spawn(filter<ChangeType, sprincle::exactly<ChangeType>>::behavior, exactly<ChangeType>(make_tuple(1,2,3))),
                                   changes, assertions);
 
   self->await_all_other_actors_done();

@@ -54,41 +54,33 @@ namespace sprincle {
     changeset_t positive;
     changeset_t negative;
 
-    delta() : positive(), negative() {}
+    delta() noexcept : positive(), negative() {}
 
     template<typename other_changeset_t>
-    delta(other_changeset_t&& p, other_changeset_t&& n) :
+    delta(other_changeset_t&& p, other_changeset_t&& n) noexcept :
       positive(forward<other_changeset_t>(p)),
       negative(forward<other_changeset_t>(n))
     {}
 
   };
 
-  /*
-   * Can be a Trimmer Node
-   */
-  template<typename tuple_t, size_t... I>
-  struct trimmer {
-    static decltype(auto) behavior(event_based_actor* self) {
+  template<class tuple_t, class map_t>
+  struct map {
+    static decltype(auto) behavior(event_based_actor* self, const map_t& map) noexcept {
       return caf::behavior {
+
         [=](const delta<tuple_t>& changes) {
 
-          auto insert = [](auto& to, const auto& from) {
-            auto i = 0;
-            for (const auto& tuple : from) {
-              to[i] = project<I...>(tuple);
-              ++i;
-            }
-          };
 
-          using projected_change_t = decltype(project<I...>(declval<typename delta<tuple_t>::change_t>()));
+          using projected_change_t = decltype(map(declval<typename delta<tuple_t>::change_t>()));
           using projected_changeset_t = typename delta<projected_change_t>::changeset_t;
 
           projected_changeset_t positives(changes.positive.size());
           projected_changeset_t negatives(changes.negative.size());
 
-          insert(positives, changes.positive);
-          insert(negatives, changes.negative);
+          transform(begin(changes.positive), end(changes.positive), begin(positives), map);
+          transform(begin(changes.negative), end(changes.negative), begin(negatives), map);
+
 
           return delta<projected_change_t>(move(positives), move(negatives));
         },
@@ -105,9 +97,9 @@ namespace sprincle {
    */
   template<class tuple_t, class predicate_t>
   struct filter {
-    static decltype(auto) behavior(event_based_actor* self, const predicate_t& predicate) {
+    static decltype(auto) behavior(event_based_actor* self, const predicate_t& predicate) noexcept {
       return caf::behavior {
-        [=](const delta<tuple_t>& changes) {
+        [=](const delta<tuple_t>& changes) noexcept {
 
           return delta<tuple_t>(
             filter_impl(predicate, changes.positive),

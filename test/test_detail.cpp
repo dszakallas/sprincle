@@ -18,13 +18,18 @@ BOOST_AUTO_TEST_SUITE( DetailTestSuite )
 
 BOOST_AUTO_TEST_CASE( ProjectionShouldWork_0 )
 {
+
   auto _0 = 5;
   auto _1 = 6;
   auto _2 = 7;
 
-  auto actual = std::make_tuple(_0, _1, _2);
-  auto expected = project<0, 1, 2>(actual);
-  BOOST_CHECK( expected == actual );
+  auto input = std::make_tuple(_0, _1, _2);
+
+  auto preserve = make_project<make_index_sequence<tuple_size<decltype(input)>::value>>();
+
+  auto output = preserve(input);
+
+  BOOST_CHECK( output == input );
 
 }
 
@@ -34,10 +39,11 @@ BOOST_AUTO_TEST_CASE( ProjectionShouldWork_1 )
   auto _1 = 4;
   auto _2 = 7;
 
-  auto actual = project<0, 1>(std::make_tuple(_0, _1, _2));
+  auto trim = project<1>();
 
-  BOOST_CHECK( get<0>(actual) == _0 );
-  BOOST_CHECK( get<1>(actual) == _1 );
+  auto actual = trim(std::make_tuple(_0, _1, _2));
+
+  BOOST_CHECK( get<0>(actual) == _1 );
 
 }
 
@@ -98,4 +104,33 @@ BOOST_AUTO_TEST_CASE( ElementsNotEqual_1 )
 
 }
 
+BOOST_AUTO_TEST_CASE( Exactly_1 )
+{
+  auto _0 = 0;
+  auto _1 = 2;
+  auto _2 = 3;
+
+  auto compare = exactly<tuple<int, int, int>>(
+    std::make_tuple(_0, _1, _2));
+
+
+  auto the_same = compare(std::make_tuple(_0, _1, _2));
+
+  BOOST_CHECK( the_same );
+
+}
+
+BOOST_AUTO_TEST_CASE( Exactly_2 )
+{
+  auto _0 = 0;
+  auto _1 = 2;
+  auto _2 = 3;
+
+  auto compare = make_exactly(std::make_tuple(_0, _1, _2));
+
+  auto the_same = compare(std::make_tuple(_0, _1, _2));
+
+  BOOST_CHECK( the_same );
+
+}
 BOOST_AUTO_TEST_SUITE_END()
