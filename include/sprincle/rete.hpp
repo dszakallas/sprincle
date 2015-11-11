@@ -131,8 +131,6 @@ namespace sprincle {
   using primary_atom = caf::atom_constant<caf::atom("primary")>;
   using secondary_atom = caf::atom_constant<caf::atom("secondary")>;
 
-
-
   template<class primary_tuple_t, class secondary_tuple_t, class... match_pairs>
   struct join :
     public event_based_actor,
@@ -236,6 +234,70 @@ namespace sprincle {
           }
 
           return result;
+
+        },
+        others >> [=] {
+          //TODO: Print error
+        }
+      };
+    }
+  };
+
+  template<class primary_tuple_t, class secondary_tuple_t, class... match_pairs>
+  struct antijoin :
+    public event_based_actor,
+    public memory<
+      typename project<(match_pairs::primary)...>::template projected_t<primary_tuple_t>,
+      primary_tuple_t,
+      secondary_tuple_t
+    > {
+
+    using match_t = typename project<(match_pairs::primary)...>::template projected_t<primary_tuple_t>;
+    using result_tuple_t = primary_tuple_t;
+
+    caf::behavior make_behavior() override {
+
+      project<(match_pairs::primary)...> primary_match;
+      project<(match_pairs::secondary)...> secondary_match;
+
+      return {
+        [=](primary_atom, const delta<primary_tuple_t> &primaries) noexcept {
+
+          const auto& negatives = primaries.negative;
+          const auto& positives = primaries.positive;
+
+          delta<result_tuple_t> result;
+
+          for(const auto& negative: negatives) {
+            const auto& key = primary_match(negative);
+
+            this->primary_store.erase(key);
+
+            auto match_range = this->secondary_store.equal_range(key);
+
+            //If no match found
+            if(match_range.first == end(this->secondary_store))
+              result.negative.push_back(negative);
+
+          }
+
+          for(const auto& positive: positives) {
+            const auto& key = primary_match(positive);
+
+            this->primary_store.insert(make_pair(primary_match(positive), positive));
+
+            auto match_range = this->secondary_store.equal_range(key);
+
+            //If no match found
+            if(match_range.first == end(this->secondary_store))
+              result.negative.push_back(positive);
+
+          }
+
+          return result;
+
+        },
+        [=](secondary_atom, const delta<secondary_tuple_t> &secondaries) noexcept {
 
         },
         others >> [=] {
