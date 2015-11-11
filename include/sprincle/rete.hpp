@@ -72,8 +72,8 @@ namespace sprincle {
   >
   struct memory {
 
-    multimap<key_t, primary_value_t> primary_store;
-    multimap<key_t, secondary_value_t> secondary_store;
+    multimap<key_t, primary_value_t> primary_indexer;
+    multimap<key_t, secondary_value_t> secondary_indexer;
 
   };
 
@@ -175,9 +175,9 @@ namespace sprincle {
           for(const auto& negative: negatives) {
             const auto& key = primary_match(negative);
 
-            this->primary_store.erase(key);
+            this->primary_indexer.erase(key);
 
-            auto match_range = this->secondary_store.equal_range(key);
+            auto match_range = this->secondary_indexer.equal_range(key);
 
             for(auto i = match_range.first; i != match_range.second; ++i)
               result.negative.push_back(tuple_cat(negative, secondary_only(i->second)));
@@ -187,9 +187,9 @@ namespace sprincle {
           for(const auto& positive: positives) {
             const auto& key = primary_match(positive);
 
-            this->primary_store.insert(make_pair(primary_match(positive), positive));
+            this->primary_indexer.insert(make_pair(primary_match(positive), positive));
 
-            auto match_range = this->secondary_store.equal_range(key);
+            auto match_range = this->secondary_indexer.equal_range(key);
 
             for(auto i = match_range.first; i != match_range.second; ++i)
               result.positive.push_back(tuple_cat(positive, secondary_only(i->second)));
@@ -212,9 +212,9 @@ namespace sprincle {
           for(const auto& negative: negatives) {
             const auto& key = secondary_match(negative);
 
-            this->secondary_store.erase(key);
+            this->secondary_indexer.erase(key);
 
-            auto match_range = this->primary_store.equal_range(key);
+            auto match_range = this->primary_indexer.equal_range(key);
 
             for(auto i = match_range.first; i != match_range.second; ++i)
               result.negative.push_back(tuple_cat(i->second, secondary_only(negative)));
@@ -224,9 +224,9 @@ namespace sprincle {
           for(const auto& positive: positives) {
             const auto& key = secondary_match(positive);
 
-            this->secondary_store.insert(make_pair(secondary_match(positive), positive));
+            this->secondary_indexer.insert(make_pair(secondary_match(positive), positive));
 
-            auto match_range = this->primary_store.equal_range(key);
+            auto match_range = this->primary_indexer.equal_range(key);
 
             for(auto i = match_range.first; i != match_range.second; ++i)
               result.positive.push_back(tuple_cat(i->second, secondary_only(positive)));
@@ -271,12 +271,12 @@ namespace sprincle {
           for(const auto& negative: negatives) {
             const auto& key = primary_match(negative);
 
-            this->primary_store.erase(key);
+            this->primary_indexer.erase(key);
 
-            auto match_range = this->secondary_store.equal_range(key);
+            auto match_range = this->secondary_indexer.equal_range(key);
 
             //If no match found
-            if(match_range.first == end(this->secondary_store))
+            if(match_range.first == end(this->secondary_indexer))
               result.negative.push_back(negative);
 
           }
@@ -284,12 +284,12 @@ namespace sprincle {
           for(const auto& positive: positives) {
             const auto& key = primary_match(positive);
 
-            this->primary_store.insert(make_pair(primary_match(positive), positive));
+            this->primary_indexer.insert(make_pair(primary_match(positive), positive));
 
-            auto match_range = this->secondary_store.equal_range(key);
+            auto match_range = this->secondary_indexer.equal_range(key);
 
             //If no match found
-            if(match_range.first == end(this->secondary_store))
+            if(match_range.first == end(this->secondary_indexer))
               result.negative.push_back(positive);
 
           }
@@ -307,9 +307,9 @@ namespace sprincle {
           for(const auto& negative: negatives) {
             const auto& key = secondary_match(negative);
 
-            this->secondary_store.erase(key);
+            this->secondary_indexer.erase(key);
 
-            auto match_range = this->primary_store.equal_range(key);
+            auto match_range = this->primary_indexer.equal_range(key);
 
             // send a positive update with the tuples matching the primary indexer
             for(auto i = match_range.first; i != match_range.second; ++i)
@@ -320,9 +320,9 @@ namespace sprincle {
           for(const auto& positive: positives) {
             const auto& key = secondary_match(positive);
 
-            this->secondary_store.insert(make_pair(secondary_match(positive), positive));
+            this->secondary_indexer.insert(make_pair(secondary_match(positive), positive));
 
-            auto match_range = this->primary_store.equal_range(key);
+            auto match_range = this->primary_indexer.equal_range(key);
 
             // send a negative update with the tuples matching the primary indexer
             for(auto i = match_range.first; i != match_range.second; ++i)
