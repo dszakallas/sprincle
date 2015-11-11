@@ -299,6 +299,39 @@ namespace sprincle {
         },
         [=](secondary_atom, const delta<secondary_tuple_t> &secondaries) noexcept {
 
+          const auto& negatives = secondaries.negative;
+          const auto& positives = secondaries.positive;
+
+          delta<result_tuple_t> result;
+
+          for(const auto& negative: negatives) {
+            const auto& key = secondary_match(negative);
+
+            this->secondary_store.erase(key);
+
+            auto match_range = this->primary_store.equal_range(key);
+
+            // send a positive update with the tuples matching the primary indexer
+            for(auto i = match_range.first; i != match_range.second; ++i)
+              result.positive.push_back(i->second);
+
+          }
+
+          for(const auto& positive: positives) {
+            const auto& key = secondary_match(positive);
+
+            this->secondary_store.insert(make_pair(secondary_match(positive), positive));
+
+            auto match_range = this->primary_store.equal_range(key);
+
+            // send a negative update with the tuples matching the primary indexer
+            for(auto i = match_range.first; i != match_range.second; ++i)
+              result.negative.push_back(i->second);
+
+          }
+
+          return result;
+
         },
         others >> [=] {
           //TODO: Print error
