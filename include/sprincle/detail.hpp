@@ -44,6 +44,55 @@ namespace sprincle {
 
   }
 
+  // Thanks to TartanLlama
+  // http://stackoverflow.com/questions/33648875/c-construct-a-tuple-from-elements-with-indices-that-are-not-in-a-given-index-s
+
+  namespace {
+
+    template<size_t First, typename Seq>
+    struct sequence_cat;
+
+    template<size_t First, size_t... Seq>
+    struct sequence_cat<First, index_sequence<Seq...>> {
+      using type = index_sequence<First, Seq...>;
+    };
+
+    template<size_t First, typename Seq>
+    using sequence_cat_t = typename sequence_cat<First, Seq>::type;
+  }
+
+  template<class First, class Second>
+  struct not_in_sequence {
+    using type = std::index_sequence<>;
+  };
+
+  template <class First, class Second>
+  using not_in_sequence_t = typename not_in_sequence<First, Second>::type;
+
+  template <size_t... First, size_t... Second,
+    size_t FirstHead, size_t SecondHead>
+  struct not_in_sequence <index_sequence<FirstHead, First...>,
+    index_sequence<SecondHead, Second...>> {
+    using seq1 = index_sequence<First...>;
+    using seq2 = index_sequence<Second...>;
+
+    using type =
+    conditional_t<
+      (FirstHead == SecondHead),
+      not_in_sequence_t<seq1, seq2>,
+      sequence_cat_t<
+        FirstHead,
+        not_in_sequence_t<seq1, sequence_cat_t<SecondHead, seq2>>
+      >
+    >;
+  };
+
+  template <size_t... First, size_t FirstHead>
+  struct not_in_sequence <index_sequence<FirstHead, First...>, index_sequence<>> {
+    using type = index_sequence<FirstHead, First...>;
+  };
+
+
 
   template<size_t... Indices>
   struct project {
@@ -57,33 +106,33 @@ namespace sprincle {
     }
   };
 
-  /*
-   * Match selectors for joins
-   */
-  template<size_t primary_t, size_t secondary_t>
-  struct match_pair {
-    enum {
-      primary = primary_t,
-      secondary = secondary_t
-    };
-  };
-
-  //TODO: Generalize to universal reference
-  template<class primary_t, class secondary_t, class... match_pairs>
-  decltype(auto) match(const primary_t& primary, const secondary_t& secondary) noexcept {
-    return project<(match_pairs::primary)...>()(primary) == project<(match_pairs::secondary)...>()(secondary);
-  }
-
-  namespace {
-    template<size_t... Indices>
-    decltype(auto) make_project_helper(index_sequence<Indices...>) noexcept {
-      return project<Indices...>();
-    }
+  template<size_t... Indices>
+  decltype(auto) make_project_helper(index_sequence<Indices...>) noexcept {
+    return project<Indices...>();
   }
 
   template<class Is>
   decltype(auto) make_project() noexcept {
     return make_project_helper(Is());
+  }
+
+
+  /*
+   * Match selectors for joins
+   */
+  template<size_t Primary, size_t Secondary>
+  struct match_pair {
+    enum {
+      primary = Primary,
+      secondary = Secondary
+    };
+  };
+
+
+  //TODO: Generalize to universal reference
+  template<class primary_t, class secondary_t, class... match_pairs>
+  decltype(auto) match(const primary_t& primary, const secondary_t& secondary) noexcept {
+    return project<(match_pairs::primary)...>()(primary) == project<(match_pairs::secondary)...>()(secondary);
   }
 
 

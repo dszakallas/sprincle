@@ -5,8 +5,8 @@
 
 #include <utility>
 #include <tuple>
-#include <utility>
-#include <list>
+#include <vector>
+#include <set>
 #include <functional>
 
 #include <caf/all.hpp>
@@ -17,6 +17,8 @@
 
 #include <sprincle/rete.hpp>
 #include <sprincle/detail.hpp>
+
+#include "pretty_tuple.h"
 
 using namespace std;
 using namespace sprincle;
@@ -164,13 +166,13 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
   delta<ChangeType> changes(
     //positive
     vector<ChangeType>{
-    make_tuple(1,2,3)
-  },
-  //negative
+      make_tuple(1,2,3)
+    },
+    //negative
   vector<ChangeType>{
     make_tuple(9,9,9),
     make_tuple(1,6,3)
-  }
+    }
   );
 
 
@@ -188,6 +190,82 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
                                   changes, assertions);
 
   self->await_all_other_actors_done();
+
+}
+
+
+
+
+BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
+
+  using ChangeTypeP = tuple<int, long, long>;
+  using ChangeTypeS = tuple<int, string, string>;
+
+  scoped_actor self;
+
+  auto testee = self->spawn<sprincle::join<ChangeTypeP, ChangeTypeS, match_pair<0,0>>>();
+
+  self->link_to(testee);
+
+  using ResultTuple = typename sprincle::join<ChangeTypeP, ChangeTypeS, match_pair<0,0>>::result_tuple_t;
+
+  using ResultType = delta<ResultTuple>;
+
+  delta<ChangeTypeP> primary_1(
+    vector<ChangeTypeP>{
+      make_tuple(1,1l,1l),
+      make_tuple(2,2l,2l)
+    },
+    vector<ChangeTypeP>{}
+  );
+
+  self->sync_send(testee, primary_atom::value, primary_1).await(
+    [=](const ResultType& result) {
+
+      BOOST_TEST_MESSAGE( !result.positive.size() );
+      BOOST_TEST_MESSAGE( !result.negative.size() );
+    }
+  );
+
+  delta<ChangeTypeS> secondary_1(
+    vector<ChangeTypeS>{
+      make_tuple(1,string("England"),string("London")),
+      make_tuple(1,string("Hungary"),string("Budapest"))
+    },
+    vector<ChangeTypeS>{}
+  );
+
+  self->sync_send(testee, secondary_atom::value, secondary_1).await(
+    [=](const ResultType& result) {
+
+      BOOST_CHECK( (result.positive.size()==2) );
+      BOOST_CHECK( !result.negative.size() );
+
+      //can blow up
+      BOOST_CHECK( (result.positive[0] == make_tuple(1,1l,1l,string("England"),string("London"))) );
+      BOOST_CHECK( (result.positive[1] == make_tuple(1,1l,1l,string("Hungary"),string("Budapest"))) );
+    }
+  );
+
+  delta<ChangeTypeS> secondary_2(
+    vector<ChangeTypeS>{ },
+    vector<ChangeTypeS>{
+      make_tuple(1,string("England"),string("London"))
+    }
+  );
+
+  self->sync_send(testee, secondary_atom::value, secondary_2).await(
+    [=](const ResultType& result) {
+
+      BOOST_CHECK( !result.positive.size() );
+      BOOST_CHECK( (result.negative.size() == 1) );
+
+      //can blow up
+      BOOST_CHECK( (result.negative[0] == make_tuple(1,1l,1l,string("England"),string("London"))) );
+    }
+  );
+
+  self->send_exit(testee, 0);
 
 }
 

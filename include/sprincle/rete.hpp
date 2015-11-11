@@ -66,15 +66,14 @@ namespace sprincle {
   };
 
   template<
-    class primary_key_t,
+    class key_t,
     class primary_value_t,
-    class secondary_key_t,
     class secondary_value_t
   >
   struct memory {
 
-    multimap<primary_key_t, primary_value_t> primary_store;
-    multimap<secondary_key_t, secondary_value_t> secondary_store;
+    multimap<key_t, primary_value_t> primary_store;
+    multimap<key_t, secondary_value_t> secondary_store;
 
   };
 
@@ -129,51 +128,114 @@ namespace sprincle {
 
   };
 
-
-
   using primary_atom = caf::atom_constant<caf::atom("primary")>;
   using secondary_atom = caf::atom_constant<caf::atom("secondary")>;
+
+
 
   template<class primary_tuple_t, class secondary_tuple_t, class... match_pairs>
   struct join :
     public event_based_actor,
     public memory<
-      typename project<(match_pairs::primary)...>::projected_t<primary_tuple_t>,
+      typename project<(match_pairs::primary)...>::template projected_t<primary_tuple_t>,
       primary_tuple_t,
-      typename project<(match_pairs::secondary)...>::projected_t<secondary_tuple_t>,
       secondary_tuple_t
     > {
 
-    using primary_match_t = project<(match_pairs::primary)...>::projected_t<primary_tuple_t>;
-    using secondary_match_t = project<(match_pairs::secondary)...>::projected_t<secondary_tuple_t>;
+    using primary_only_seq_t = not_in_sequence_t<
+        make_index_sequence<tuple_size<primary_tuple_t>::value>,
+        index_sequence<(match_pairs::primary)...>
+      >;
+    using secondary_only_seq_t = not_in_sequence_t<
+      make_index_sequence<tuple_size<secondary_tuple_t>::value>,
+      index_sequence<(match_pairs::secondary)...>
+    >;
 
-    project<(match_pairs::primary)...> primary_match;
-    project<(match_pairs::secondary)...> secondary_match;
+    // this syntax is nuts
+    using match_t = typename project<(match_pairs::primary)...>::template projected_t<primary_tuple_t>;
 
+
+    using primary_only_t = typename decltype(make_project<primary_only_seq_t>())::template projected_t<primary_tuple_t>;
+    using secondary_only_t = typename decltype(make_project<secondary_only_seq_t>())::template projected_t<secondary_tuple_t>;
+    using result_tuple_t = decltype(tuple_cat(declval<primary_tuple_t>(), declval<secondary_only_t>()));
 
     caf::behavior make_behavior() override {
+      auto primary_only = make_project<primary_only_seq_t>();
+      auto secondary_only = make_project<secondary_only_seq_t>();
+
+      project<(match_pairs::primary)...> primary_match;
+      project<(match_pairs::secondary)...> secondary_match;
+
       return {
         [=](primary_atom, const delta<primary_tuple_t>& primaries) noexcept {
 
           const auto& negatives = primaries.negative;
           const auto& positives = primaries.positive;
 
-          delta<primary_tuple_t> result;
+          delta<result_tuple_t> result;
 
-          for(const auto& negative: negatives)
-            primary_store.erase(primary_match(negative));
+          for(const auto& negative: negatives) {
+            const auto& key = primary_match(negative);
 
-          for(const auto& positive: positives)
-            primary_store.insert(make_pair(primary_match(positive), positive));
+            this->primary_store.erase(key);
 
-          // TODO
+            auto match_range = this->secondary_store.equal_range(key);
 
+            for(auto i = match_range.first; i != match_range.second; ++i)
+              result.negative.push_back(tuple_cat(negative, secondary_only(i->second)));
+
+          }
+
+          for(const auto& positive: positives) {
+            const auto& key = primary_match(positive);
+
+            this->primary_store.insert(make_pair(primary_match(positive), positive));
+
+            auto match_range = this->secondary_store.equal_range(key);
+
+            for(auto i = match_range.first; i != match_range.second; ++i)
+              result.positive.push_back(tuple_cat(positive, secondary_only(i->second)));
+
+          }
+
+          return result;
 
 
         },
-        [=](secondary_atom, const delta<secondary_tuple_t>& secondaries) noexcept {
+        // TODO fix code duplication
+        [=](secondary_atom, const delta<secondary_tuple_t>& secondary_delta) noexcept {
 
-          //TODO
+          const auto& negatives = secondary_delta.negative;
+          const auto& positives = secondary_delta.positive;
+
+
+          delta<result_tuple_t> result;
+
+          for(const auto& negative: negatives) {
+            const auto& key = secondary_match(negative);
+
+            this->secondary_store.erase(key);
+
+            auto match_range = this->primary_store.equal_range(key);
+
+            for(auto i = match_range.first; i != match_range.second; ++i)
+              result.negative.push_back(tuple_cat(i->second, secondary_only(negative)));
+
+          }
+
+          for(const auto& positive: positives) {
+            const auto& key = secondary_match(positive);
+
+            this->secondary_store.insert(make_pair(secondary_match(positive), positive));
+
+            auto match_range = this->primary_store.equal_range(key);
+
+            for(auto i = match_range.first; i != match_range.second; ++i)
+              result.positive.push_back(tuple_cat(i->second, secondary_only(positive)));
+
+          }
+
+          return result;
 
         },
         others >> [=] {
