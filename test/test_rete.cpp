@@ -57,25 +57,25 @@ BOOST_AUTO_TEST_SUITE( ReteTestSuite )
 
 BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
-    using InputType = tuple<int, int, int>;
+    using InputChange = tuple<int, int, int>;
 
     auto removeLast = sprincle::project<0, 1>();
 
-    using OutputType = decltype(removeLast)::projected_t<InputType>;
+    using OutputChange = typename decltype(removeLast)::template projected_t<InputChange>;
 
-    delta<InputType> changes(
+    delta<InputChange> changes(
       //positive
-      vector<InputType>{
+      vector<InputChange>{
         make_tuple(1,2,3)
       },
       //negative
-      vector<InputType>{
+      vector<InputChange>{
         make_tuple(1,9,3),
         make_tuple(1,6,3)
       }
     );
 
-    auto assertions = [](const delta<InputType>& changesIn, const delta<OutputType>& changesOut, const actor&, event_based_actor*) {
+    auto assertions = [](const delta<InputChange>& changesIn, const delta<OutputChange>& changesOut, const actor&, event_based_actor*) {
       BOOST_CHECK(changesIn.positive.size() == changesOut.positive.size());
 
       auto positives = boost::make_iterator_range(
@@ -111,8 +111,8 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
     scoped_actor self;
 
-    auto tester_actor = self->spawn(tester<actor, delta<InputType>, delta<OutputType>, decltype(assertions)>,
-                              spawn(sprincle::map<InputType, decltype(removeLast)>::behavior, removeLast),
+    auto tester_actor = self->spawn(tester<actor, delta<InputChange>, delta<OutputChange>, decltype(assertions)>,
+                              spawn(sprincle::map<InputChange, decltype(removeLast)>::behavior, removeLast),
                               changes, assertions);
 
     self->await_all_other_actors_done();
@@ -127,29 +127,29 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
  */
 BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
 
-    using ChangeType = tuple<long, long, long>;
+    using Change = tuple<long, long, long>;
 
-    delta<ChangeType> changes(
+    delta<Change> changes(
         //positive
-        vector<ChangeType>{
+        vector<Change>{
         make_tuple(1,2,3)
       },
       //negative
-      vector<ChangeType>{
+      vector<Change>{
         make_tuple(9,9,9),
         make_tuple(1,6,3)
       }
     );
 
-    auto assertions = [](const delta<ChangeType>&, const delta<ChangeType>& changesOut, const actor&, event_based_actor*){
+    auto assertions = [](const delta<Change>&, const delta<Change>& changesOut, const actor&, event_based_actor*){
       BOOST_CHECK(changesOut.positive.size() == 0);
       BOOST_CHECK(changesOut.negative.size() == 1);
     };
 
     scoped_actor self;
 
-    auto tester_actor = self->spawn(tester<actor, delta<ChangeType>, delta<ChangeType>, decltype(assertions)>,
-                                    spawn(filter<ChangeType, sprincle::forall_equals>::behavior, sprincle::forall_equals()),
+    auto tester_actor = self->spawn(tester<actor, delta<Change>, delta<Change>, decltype(assertions)>,
+                                    spawn(filter<Change, sprincle::forall_equals>::behavior, sprincle::forall_equals()),
                                     changes, assertions);
 
     self->await_all_other_actors_done();
@@ -161,22 +161,22 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
  */
 BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
 
-  using ChangeType = tuple<long, long, long>;
+  using Change = tuple<long, long, long>;
 
-  delta<ChangeType> changes(
+  delta<Change> changes(
     //positive
-    vector<ChangeType>{
+    vector<Change>{
       make_tuple(1,2,3)
     },
     //negative
-  vector<ChangeType>{
+  vector<Change>{
     make_tuple(9,9,9),
     make_tuple(1,6,3)
     }
   );
 
 
-  auto assertions = [](const delta<ChangeType>&, const delta<ChangeType>& changesOut, const actor&, event_based_actor*){
+  auto assertions = [](const delta<Change>&, const delta<Change>& changesOut, const actor&, event_based_actor*){
     BOOST_CHECK( changesOut.positive.size() == 1 );
     BOOST_CHECK( changesOut.negative.size() == 0 );
 
@@ -185,8 +185,8 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
 
   scoped_actor self;
 
-  auto tester_actor = self->spawn(tester<actor, delta<ChangeType>, delta<ChangeType>, decltype(assertions)>,
-                                  spawn(filter<ChangeType, sprincle::exactly<ChangeType>>::behavior, exactly<ChangeType>(make_tuple(1,2,3))),
+  auto tester_actor = self->spawn(tester<actor, delta<Change>, delta<Change>, decltype(assertions)>,
+                                  spawn(filter<Change, sprincle::exactly<Change>>::behavior, exactly<Change>(make_tuple(1,2,3))),
                                   changes, assertions);
 
   self->await_all_other_actors_done();
@@ -198,45 +198,45 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
 
 BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
 
-  using ChangeTypeP = tuple<int, long, long>;
-  using ChangeTypeS = tuple<int, string, string>;
+  using PrimaryChange = tuple<int, long, long>;
+  using SecondaryChange = tuple<int, string, string>;
 
   scoped_actor self;
 
-  auto testee = self->spawn<sprincle::join<ChangeTypeP, ChangeTypeS, match_pair<0,0>>>();
+  auto testee = self->spawn<sprincle::join<PrimaryChange, SecondaryChange, match_pair<0,0>>>();
 
   self->link_to(testee);
 
-  using ResultTuple = typename sprincle::join<ChangeTypeP, ChangeTypeS, match_pair<0,0>>::result_tuple_t;
+  using ResultChange = typename sprincle::join<PrimaryChange, SecondaryChange, match_pair<0,0>>::result_tuple_t;
 
-  using ResultType = delta<ResultTuple>;
+  using Result = delta<ResultChange>;
 
-  delta<ChangeTypeP> primary_1(
-    vector<ChangeTypeP>{
+  delta<PrimaryChange> primary_1(
+    vector<PrimaryChange>{
       make_tuple(1,1l,1l),
       make_tuple(2,2l,2l)
     },
-    vector<ChangeTypeP>{}
+    vector<PrimaryChange>{}
   );
 
   self->sync_send(testee, primary_atom::value, primary_1).await(
-    [=](const ResultType& result) {
+    [=](const Result& result) {
 
       BOOST_TEST_MESSAGE( !result.positive.size() );
       BOOST_TEST_MESSAGE( !result.negative.size() );
     }
   );
 
-  delta<ChangeTypeS> secondary_1(
-    vector<ChangeTypeS>{
+  delta<SecondaryChange> secondary_1(
+    vector<SecondaryChange>{
       make_tuple(1,string("England"),string("London")),
       make_tuple(1,string("Hungary"),string("Budapest"))
     },
-    vector<ChangeTypeS>{}
+    vector<SecondaryChange>{}
   );
 
   self->sync_send(testee, secondary_atom::value, secondary_1).await(
-    [=](const ResultType& result) {
+    [=](const Result& result) {
 
       BOOST_CHECK( (result.positive.size()==2) );
       BOOST_CHECK( !result.negative.size() );
@@ -247,15 +247,15 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
     }
   );
 
-  delta<ChangeTypeS> secondary_2(
-    vector<ChangeTypeS>{ },
-    vector<ChangeTypeS>{
+  delta<SecondaryChange> secondary_2(
+    vector<SecondaryChange>{ },
+    vector<SecondaryChange>{
       make_tuple(1,string("England"),string("London"))
     }
   );
 
   self->sync_send(testee, secondary_atom::value, secondary_2).await(
-    [=](const ResultType& result) {
+    [=](const Result& result) {
 
       BOOST_CHECK( !result.positive.size() );
       BOOST_CHECK( (result.negative.size() == 1) );
