@@ -65,11 +65,11 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
     delta<InputChange> changes(
       //positive
-      vector<InputChange>{
+      set<InputChange>{
         make_tuple(1,2,3)
       },
       //negative
-      vector<InputChange>{
+      set<InputChange>{
         make_tuple(1,9,3),
         make_tuple(1,6,3)
       }
@@ -131,11 +131,11 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
 
     delta<Change> changes(
         //positive
-        vector<Change>{
+        set<Change>{
         make_tuple(1,2,3)
       },
       //negative
-      vector<Change>{
+      set<Change>{
         make_tuple(9,9,9),
         make_tuple(1,6,3)
       }
@@ -165,11 +165,11 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
 
   delta<Change> changes(
     //positive
-    vector<Change>{
+    set<Change>{
       make_tuple(1,2,3)
     },
     //negative
-  vector<Change>{
+  set<Change>{
     make_tuple(9,9,9),
     make_tuple(1,6,3)
     }
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
     BOOST_CHECK( changesOut.positive.size() == 1 );
     BOOST_CHECK( changesOut.negative.size() == 0 );
 
-    BOOST_CHECK( changesOut.positive[0] == make_tuple(1,2,3) );
+    BOOST_CHECK( changesOut.positive.find(make_tuple(1,2,3)) != end(changesOut.positive) );
   };
 
   scoped_actor self;
@@ -192,9 +192,6 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
   self->await_all_other_actors_done();
 
 }
-
-
-
 
 BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
 
@@ -212,27 +209,27 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
   using Result = delta<ResultChange>;
 
   delta<PrimaryChange> primary_1(
-    vector<PrimaryChange>{
+    set<PrimaryChange>{
       make_tuple(1,1l,1l),
       make_tuple(2,2l,2l)
     },
-    vector<PrimaryChange>{}
+    set<PrimaryChange>{}
   );
 
   self->sync_send(testee, primary_atom::value, primary_1).await(
     [=](const Result& result) {
 
-      BOOST_TEST_MESSAGE( !result.positive.size() );
-      BOOST_TEST_MESSAGE( !result.negative.size() );
+      BOOST_CHECK( !result.positive.size() );
+      BOOST_CHECK( !result.negative.size() );
     }
   );
 
   delta<SecondaryChange> secondary_1(
-    vector<SecondaryChange>{
+    set<SecondaryChange>{
       make_tuple(1,string("England"),string("London")),
       make_tuple(1,string("Hungary"),string("Budapest"))
     },
-    vector<SecondaryChange>{}
+    set<SecondaryChange>{}
   );
 
   self->sync_send(testee, secondary_atom::value, secondary_1).await(
@@ -242,14 +239,14 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
       BOOST_CHECK( !result.negative.size() );
 
       //can blow up
-      BOOST_CHECK( (result.positive[0] == make_tuple(1,1l,1l,string("England"),string("London"))) );
-      BOOST_CHECK( (result.positive[1] == make_tuple(1,1l,1l,string("Hungary"),string("Budapest"))) );
+      BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l,string("England"),string("London"))) != end(result.positive)) );
+      BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l,string("Hungary"),string("Budapest"))) != end(result.positive)) );
     }
   );
 
   delta<SecondaryChange> secondary_2(
-    vector<SecondaryChange>{ },
-    vector<SecondaryChange>{
+    set<SecondaryChange>{ },
+    set<SecondaryChange>{
       make_tuple(1,string("England"),string("London"))
     }
   );
@@ -261,7 +258,65 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
       BOOST_CHECK( (result.negative.size() == 1) );
 
       //can blow up
-      BOOST_CHECK( (result.negative[0] == make_tuple(1,1l,1l,string("England"),string("London"))) );
+      BOOST_CHECK( (result.negative.find(make_tuple(1,1l,1l,string("England"),string("London"))) != end(result.negative)) );
+    }
+  );
+
+  self->send_exit(testee, 0);
+
+}
+
+BOOST_AUTO_TEST_CASE( AntijoinTestCase_0 ) {
+
+  using PrimaryChange = tuple<int, long, long>;
+  using SecondaryChange = tuple<int, string, string>;
+
+  scoped_actor self;
+
+  auto testee = self->spawn<sprincle::antijoin<PrimaryChange, SecondaryChange, match_pair<0,0>>>();
+
+  self->link_to(testee);
+
+  using ResultChange = typename sprincle::antijoin<PrimaryChange, SecondaryChange, match_pair<0,0>>::result_tuple_t;
+
+  using Result = delta<ResultChange>;
+
+  delta<PrimaryChange> primary_1(
+    set<PrimaryChange>{
+      make_tuple(1,1l,1l),
+      make_tuple(2,2l,2l)
+    },
+    set<PrimaryChange>{}
+  );
+
+  self->sync_send(testee, primary_atom::value, primary_1).await(
+    [=](const Result& result) {
+
+      BOOST_CHECK( (result.positive.size()==2) );
+      BOOST_CHECK( !result.negative.size() );
+
+      BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l)) != end(result.positive)) );
+      BOOST_CHECK( (result.positive.find(make_tuple(2,2l,2l)) != end(result.positive)) );
+
+    }
+  );
+
+  delta<SecondaryChange> secondary_1(
+    set<SecondaryChange>{
+      make_tuple(1,string("England"),string("London")),
+      make_tuple(1,string("Hungary"),string("Budapest"))
+    },
+    set<SecondaryChange>{}
+  );
+
+  self->sync_send(testee, secondary_atom::value, secondary_1).await(
+    [=](const Result& result) {
+
+      BOOST_CHECK( !result.positive.size() );
+      BOOST_CHECK( (result.negative.size()==1) );
+
+      BOOST_CHECK( (result.negative.find(make_tuple(1,1l,1l)) != end(result.negative)) );
+
     }
   );
 

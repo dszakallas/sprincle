@@ -10,8 +10,8 @@
 #include <array>
 #include <utility>
 #include <algorithm>
-#include <iostream>
 #include <map>
+#include <set>
 
 #include <boost/iterator/filter_iterator.hpp>
 #include <boost/range.hpp>
@@ -25,17 +25,17 @@ using namespace caf;
 
 namespace {
 
-  template<class predicate_t, class vector_t>
-  decltype(auto) filter_impl(predicate_t&& p, vector_t&& v) noexcept {
+  template<class predicate_t, class container_t>
+  decltype(auto) filter_impl(predicate_t&& p, container_t&& v) noexcept {
 
     auto good = boost::make_iterator_range(
-      boost::filter_iterator<predicate_t, decltype(begin(forward<vector_t>(v)))>
-        (forward<predicate_t>(p), begin(forward<vector_t>(v)), end(forward<vector_t>(v))),
-      boost::filter_iterator<predicate_t, decltype(begin(forward<vector_t>(v)))>
-        (forward<predicate_t>(p), end(forward<vector_t>(v)), end(forward<vector_t>(v)))
+      boost::filter_iterator<predicate_t, decltype(begin(forward<container_t>(v)))>
+        (forward<predicate_t>(p), begin(forward<container_t>(v)), end(forward<container_t>(v))),
+      boost::filter_iterator<predicate_t, decltype(begin(forward<container_t>(v)))>
+        (forward<predicate_t>(p), end(forward<container_t>(v)), end(forward<container_t>(v)))
     );
 
-    return remove_reference_t<vector_t>(good.begin(), good.end());
+    return remove_reference_t<container_t>(good.begin(), good.end());
   };
 
 }
@@ -50,7 +50,7 @@ namespace sprincle {
   struct delta {
 
     using change_t = tuple_t;
-    using changeset_t = vector<change_t>;
+    using changeset_t = set<change_t>;
 
     changeset_t positive;
     changeset_t negative;
@@ -88,11 +88,14 @@ namespace sprincle {
           using projected_change_t = decltype(map(declval<typename delta<tuple_t>::change_t>()));
           using projected_changeset_t = typename delta<projected_change_t>::changeset_t;
 
-          projected_changeset_t positives(changes.positive.size());
-          projected_changeset_t negatives(changes.negative.size());
+          projected_changeset_t positives;
+          projected_changeset_t negatives;
 
-          transform(begin(changes.positive), end(changes.positive), begin(positives), map);
-          transform(begin(changes.negative), end(changes.negative), begin(negatives), map);
+          for(auto i = begin(changes.positive); i != end(changes.positive); ++i)
+            positives.insert(map(*i));
+
+          for(auto i = begin(changes.negative); i != end(changes.negative); ++i)
+            negatives.insert(map(*i));
 
 
           return delta<projected_change_t>(move(positives), move(negatives));
@@ -180,19 +183,19 @@ namespace sprincle {
             auto match_range = this->secondary_indexer.equal_range(key);
 
             for(auto i = match_range.first; i != match_range.second; ++i)
-              result.negative.push_back(tuple_cat(negative, secondary_only(i->second)));
+              result.negative.insert(tuple_cat(negative, secondary_only(i->second)));
 
           }
 
           for(const auto& positive: positives) {
             const auto& key = primary_match(positive);
 
-            this->primary_indexer.insert(make_pair(primary_match(positive), positive));
+            this->primary_indexer.insert(make_pair(key, positive));
 
             auto match_range = this->secondary_indexer.equal_range(key);
 
             for(auto i = match_range.first; i != match_range.second; ++i)
-              result.positive.push_back(tuple_cat(positive, secondary_only(i->second)));
+              result.positive.insert(tuple_cat(positive, secondary_only(i->second)));
 
           }
 
@@ -217,19 +220,19 @@ namespace sprincle {
             auto match_range = this->primary_indexer.equal_range(key);
 
             for(auto i = match_range.first; i != match_range.second; ++i)
-              result.negative.push_back(tuple_cat(i->second, secondary_only(negative)));
+              result.negative.insert(tuple_cat(i->second, secondary_only(negative)));
 
           }
 
           for(const auto& positive: positives) {
             const auto& key = secondary_match(positive);
 
-            this->secondary_indexer.insert(make_pair(secondary_match(positive), positive));
+            this->secondary_indexer.insert(make_pair(key, positive));
 
             auto match_range = this->primary_indexer.equal_range(key);
 
             for(auto i = match_range.first; i != match_range.second; ++i)
-              result.positive.push_back(tuple_cat(i->second, secondary_only(positive)));
+              result.positive.insert(tuple_cat(i->second, secondary_only(positive)));
 
           }
 
@@ -277,20 +280,20 @@ namespace sprincle {
 
             //If no match found
             if(match_range.first == end(this->secondary_indexer))
-              result.negative.push_back(negative);
+              result.negative.insert(negative);
 
           }
 
           for(const auto& positive: positives) {
             const auto& key = primary_match(positive);
 
-            this->primary_indexer.insert(make_pair(primary_match(positive), positive));
+            this->primary_indexer.insert(make_pair(key, positive));
 
             auto match_range = this->secondary_indexer.equal_range(key);
 
             //If no match found
             if(match_range.first == end(this->secondary_indexer))
-              result.negative.push_back(positive);
+              result.positive.insert(positive);
 
           }
 
@@ -313,20 +316,20 @@ namespace sprincle {
 
             // send a positive update with the tuples matching the primary indexer
             for(auto i = match_range.first; i != match_range.second; ++i)
-              result.positive.push_back(i->second);
+              result.positive.insert(i->second);
 
           }
 
           for(const auto& positive: positives) {
             const auto& key = secondary_match(positive);
 
-            this->secondary_indexer.insert(make_pair(secondary_match(positive), positive));
+            this->secondary_indexer.insert(make_pair(key, positive));
 
             auto match_range = this->primary_indexer.equal_range(key);
 
             // send a negative update with the tuples matching the primary indexer
             for(auto i = match_range.first; i != match_range.second; ++i)
-              result.negative.push_back(i->second);
+              result.negative.insert(i->second);
 
           }
 
