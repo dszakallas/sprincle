@@ -128,14 +128,6 @@ namespace sprincle {
     };
   };
 
-
-  //TODO: Generalize to universal reference
-  template<class primary_t, class secondary_t, class... match_pairs>
-  decltype(auto) match(const primary_t& primary, const secondary_t& secondary) noexcept {
-    return project<(match_pairs::primary)...>()(primary) == project<(match_pairs::secondary)...>()(secondary);
-  }
-
-
   struct equals {
     template<class T1, class T2>
     bool operator()(T1&& t1, T2&& t2) const noexcept {
