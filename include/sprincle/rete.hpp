@@ -5,11 +5,8 @@
 #ifndef SPRINCLE_RETE_HPP
 #define SPRINCLE_RETE_HPP
 
-#include <vector>
 #include <tuple>
-#include <array>
 #include <utility>
-#include <algorithm>
 #include <map>
 #include <set>
 
@@ -200,7 +197,6 @@ namespace sprincle {
           }
 
           return result;
-
 
         },
         // TODO fix code duplication

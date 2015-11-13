@@ -5,9 +5,7 @@
 
 #include <utility>
 #include <tuple>
-#include <vector>
 #include <set>
-#include <functional>
 
 #include <caf/all.hpp>
 
