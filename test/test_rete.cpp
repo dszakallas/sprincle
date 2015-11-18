@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
     using OutputChange = typename decltype(removeLast)::template projected_t<InputChange>;
 
-    delta<InputChange> changes(
+    delta<InputChange> changesIn(
       //positive
       set<InputChange>{
         make_tuple(1,2,3)
@@ -73,52 +73,57 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
       }
     );
 
-    auto assertions = [](const delta<InputChange>& changesIn, const delta<OutputChange>& changesOut, const actor&, event_based_actor*) {
-      BOOST_CHECK(changesIn.positive.size() == changesOut.positive.size());
-
-      auto positives = boost::make_iterator_range(
-        boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.positive), std::begin(changesOut.positive))),
-        boost::make_zip_iterator(boost::make_tuple(std::end(changesIn.positive), std::end(changesOut.positive)))
-      );
-
-      for(auto&& positive : positives) {
-        const auto& in = boost::get<0>(positive);
-        const auto& out = boost::get<1>(positive);
-
-        BOOST_CHECK( get<0>(in) == get<0>(out) );
-        BOOST_CHECK( get<1>(in) == get<1>(out) );
-
-      }
-
-      BOOST_CHECK(changesIn.negative.size() == changesOut.negative.size());
-
-      auto negatives = boost::make_iterator_range(
-        boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.negative), std::begin(changesOut.negative))),
-        boost::make_zip_iterator(boost::make_tuple(std::end(changesIn.negative), std::end(changesOut.negative)))
-      );
-
-      for(auto&& negative : negatives) {
-        const auto& in = boost::get<0>(negative);
-        const auto& out = boost::get<1>(negative);
-
-        BOOST_CHECK( get<0>(in) == get<0>(out) );
-        BOOST_CHECK( get<1>(in) == get<1>(out) );
-
-      }
-    };
-
     scoped_actor self;
 
-    auto tester_actor = self->spawn(tester<actor, delta<InputChange>, delta<OutputChange>, decltype(assertions)>,
-                              spawn(sprincle::map<InputChange, decltype(removeLast)>::behavior, removeLast),
-                              changes, assertions);
+    auto trimmer_actor = spawn_map_node<InputChange>(removeLast, self, primary_slot::value);
 
-    self->await_all_other_actors_done();
+    self->sync_send(trimmer_actor, primary_slot::value, changesIn).await([]{}); //wait while trimmer_actor processes the message
+
+    // check trimmer_actor's response
+    self->receive(
+      on<primary_slot, delta<OutputChange>>() >> [&](primary_slot, const delta<OutputChange>& changesOut){
+        BOOST_CHECK( changesIn.positive.size() == changesOut.positive.size() );
+
+        auto positives = boost::make_iterator_range(
+          boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.positive), std::begin(changesOut.positive))),
+          boost::make_zip_iterator(boost::make_tuple(std::end(changesIn.positive), std::end(changesOut.positive)))
+        );
+
+        for(auto&& positive : positives) {
+          const auto& in = boost::get<0>(positive);
+          const auto& out = boost::get<1>(positive);
+
+          BOOST_CHECK( get<0>(in) == get<0>(out) );
+          BOOST_CHECK( get<1>(in) == get<1>(out) );
+
+        }
+
+        BOOST_CHECK(changesIn.negative.size() == changesOut.negative.size());
+
+        auto negatives = boost::make_iterator_range(
+          boost::make_zip_iterator(boost::make_tuple(std::begin(changesIn.negative), std::begin(changesOut.negative))),
+          boost::make_zip_iterator(boost::make_tuple(std::end(changesIn.negative), std::end(changesOut.negative)))
+        );
+
+        for(auto&& negative : negatives) {
+          const auto& in = boost::get<0>(negative);
+          const auto& out = boost::get<1>(negative);
+
+          BOOST_CHECK( get<0>(in) == get<0>(out) );
+          BOOST_CHECK( get<1>(in) == get<1>(out) );
+
+        }
+      },
+      others >> [=] {
+        BOOST_FAIL( "Unexpected message" );
+      }
+    );
+    self->send_exit(trimmer_actor, exit_reason::user_shutdown);
+
 
 }
 /**********************************************************************************************************/
 /* FILTER TESTS*/
-
 
 /*
  * Tests
@@ -128,8 +133,8 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
     using Change = tuple<long, long, long>;
 
     delta<Change> changes(
-        //positive
-        set<Change>{
+      //positive
+      set<Change>{
         make_tuple(1,2,3)
       },
       //negative
@@ -139,18 +144,23 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
       }
     );
 
-    auto assertions = [](const delta<Change>&, const delta<Change>& changesOut, const actor&, event_based_actor*){
-      BOOST_CHECK(changesOut.positive.size() == 0);
-      BOOST_CHECK(changesOut.negative.size() == 1);
-    };
-
     scoped_actor self;
 
-    auto tester_actor = self->spawn(tester<actor, delta<Change>, delta<Change>, decltype(assertions)>,
-                                    spawn(filter<Change, sprincle::forall_equals>::behavior, sprincle::forall_equals()),
-                                    changes, assertions);
+    auto filter_actor = spawn_filter_node<Change>(forall_equals(), self, primary_slot::value);
 
-    self->await_all_other_actors_done();
+    self->sync_send(filter_actor, primary_slot::value, changes).await([]{});
+
+    self->receive(
+      on<primary_slot, delta<Change>>() >> [&](primary_slot, const delta<Change>& changesOut){
+        BOOST_CHECK(changesOut.positive.size() == 0);
+        BOOST_CHECK(changesOut.negative.size() == 1);
+      },
+      others >> [=] {
+        BOOST_FAIL( "Unexpected message" );
+      }
+    );
+
+    self->send_exit(filter_actor, exit_reason::user_shutdown);
 
 }
 
@@ -167,27 +177,30 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
       make_tuple(1,2,3)
     },
     //negative
-  set<Change>{
-    make_tuple(9,9,9),
-    make_tuple(1,6,3)
+    set<Change>{
+      make_tuple(9,9,9),
+      make_tuple(1,6,3)
     }
   );
 
-
-  auto assertions = [](const delta<Change>&, const delta<Change>& changesOut, const actor&, event_based_actor*){
-    BOOST_CHECK( changesOut.positive.size() == 1 );
-    BOOST_CHECK( changesOut.negative.size() == 0 );
-
-    BOOST_CHECK( changesOut.positive.find(make_tuple(1,2,3)) != end(changesOut.positive) );
-  };
-
   scoped_actor self;
 
-  auto tester_actor = self->spawn(tester<actor, delta<Change>, delta<Change>, decltype(assertions)>,
-                                  spawn(filter<Change, sprincle::exactly<Change>>::behavior, exactly<Change>(make_tuple(1,2,3))),
-                                  changes, assertions);
+  auto filter_actor = spawn_filter_node<Change>(exactly(make_tuple(1,2,3)), self, primary_slot::value);
 
-  self->await_all_other_actors_done();
+  self->sync_send(filter_actor, primary_slot::value, changes).await([]{});
+
+  self->receive(
+    on<primary_slot, delta<Change>>() >> [&](primary_slot, const delta<Change>& changesOut){
+      BOOST_CHECK( changesOut.positive.size() == 1 );
+      BOOST_CHECK( changesOut.negative.size() == 0 );
+      BOOST_CHECK( changesOut.positive.find(make_tuple(1,2,3)) != end(changesOut.positive) );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
+    }
+  );
+
+  self->send_exit(filter_actor, exit_reason::user_shutdown);
 
 }
 
@@ -198,11 +211,10 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
 
   scoped_actor self;
 
-  auto testee = self->spawn<sprincle::join<PrimaryChange, SecondaryChange, match_pair<0,0>>>();
+  auto testee = spawn_join_node<PrimaryChange, SecondaryChange, match_pair<0,0>>(self, primary_slot::value);
 
-  self->link_to(testee);
-
-  using ResultChange = typename sprincle::join<PrimaryChange, SecondaryChange, match_pair<0,0>>::result_tuple_t;
+  //TODO clean this up later
+  using ResultChange = typename join_node<PrimaryChange, SecondaryChange, primary_slot, match_pair<0,0>>::result_tuple_t;
 
   using Result = delta<ResultChange>;
 
@@ -214,11 +226,15 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
     set<PrimaryChange>{}
   );
 
-  self->sync_send(testee, primary_atom::value, primary_1).await(
-    [=](const Result& result) {
+  self->sync_send(testee, primary_slot::value, primary_1).await([]{});
 
-      BOOST_CHECK( !result.positive.size() );
-      BOOST_CHECK( !result.negative.size() );
+  self->receive(
+    on<primary_slot, Result>() >> [&](primary_slot, const Result& result) {
+        BOOST_CHECK( !result.positive.size() );
+        BOOST_CHECK( !result.negative.size() );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
     }
   );
 
@@ -230,15 +246,18 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
     set<SecondaryChange>{}
   );
 
-  self->sync_send(testee, secondary_atom::value, secondary_1).await(
-    [=](const Result& result) {
+  self->sync_send(testee, secondary_slot::value, secondary_1).await([]{});
 
+  self->receive(
+    on<primary_slot, Result>() >> [&](primary_slot, const Result& result) {
       BOOST_CHECK( (result.positive.size()==2) );
       BOOST_CHECK( !result.negative.size() );
 
-      //can blow up
       BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l,string("England"),string("London"))) != end(result.positive)) );
       BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l,string("Hungary"),string("Budapest"))) != end(result.positive)) );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
     }
   );
 
@@ -249,18 +268,21 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
     }
   );
 
-  self->sync_send(testee, secondary_atom::value, secondary_2).await(
-    [=](const Result& result) {
+  self->sync_send(testee, secondary_slot::value, secondary_2).await([]{});
 
+  self->receive(
+    on<primary_slot, Result>() >> [&](primary_slot, const Result& result) {
       BOOST_CHECK( !result.positive.size() );
       BOOST_CHECK( (result.negative.size() == 1) );
 
       //can blow up
       BOOST_CHECK( (result.negative.find(make_tuple(1,1l,1l,string("England"),string("London"))) != end(result.negative)) );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
     }
   );
-
-  self->send_exit(testee, 0);
+  self->send_exit(testee, exit_reason::user_shutdown);
 
 }
 
@@ -271,11 +293,9 @@ BOOST_AUTO_TEST_CASE( AntijoinTestCase_0 ) {
 
   scoped_actor self;
 
-  auto testee = self->spawn<sprincle::antijoin<PrimaryChange, SecondaryChange, match_pair<0,0>>>();
+  auto testee = spawn_antijoin_node<PrimaryChange, SecondaryChange, match_pair<0,0>>(self, primary_slot::value);
 
-  self->link_to(testee);
-
-  using ResultChange = typename sprincle::antijoin<PrimaryChange, SecondaryChange, match_pair<0,0>>::result_tuple_t;
+  using ResultChange = typename antijoin_node<PrimaryChange, SecondaryChange, primary_slot, match_pair<0,0>>::result_tuple_t;
 
   using Result = delta<ResultChange>;
 
@@ -287,15 +307,18 @@ BOOST_AUTO_TEST_CASE( AntijoinTestCase_0 ) {
     set<PrimaryChange>{}
   );
 
-  self->sync_send(testee, primary_atom::value, primary_1).await(
-    [=](const Result& result) {
+  self->sync_send(testee, primary_slot::value, primary_1).await([]{});
 
+  self->receive(
+    on<primary_slot, delta<ResultChange>>() >> [=](primary_slot, const Result& result) {
       BOOST_CHECK( (result.positive.size()==2) );
       BOOST_CHECK( !result.negative.size() );
 
       BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l)) != end(result.positive)) );
       BOOST_CHECK( (result.positive.find(make_tuple(2,2l,2l)) != end(result.positive)) );
-
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
     }
   );
 
@@ -307,18 +330,21 @@ BOOST_AUTO_TEST_CASE( AntijoinTestCase_0 ) {
     set<SecondaryChange>{}
   );
 
-  self->sync_send(testee, secondary_atom::value, secondary_1).await(
-    [=](const Result& result) {
+  self->sync_send(testee, secondary_slot::value, secondary_1).await([]{});
 
+  self->receive(
+    on<primary_slot, delta<ResultChange>>() >> [=](primary_slot, const Result& result) {
       BOOST_CHECK( !result.positive.size() );
       BOOST_CHECK( (result.negative.size()==1) );
 
       BOOST_CHECK( (result.negative.find(make_tuple(1,1l,1l)) != end(result.negative)) );
-
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
     }
   );
 
-  self->send_exit(testee, 0);
+  self->send_exit(testee, exit_reason::user_shutdown);
 
 }
 

@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE( Exactly_1 )
   auto _1 = 2;
   auto _2 = 3;
 
-  auto compare = exactly<tuple<int, int, int>>(
+  auto compare = exactly(
     std::make_tuple(_0, _1, _2));
 
 
@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE( Exactly_2 )
   auto _1 = 2;
   auto _2 = 3;
 
-  auto compare = make_exactly(std::make_tuple(_0, _1, _2));
+  auto compare = exactly(std::make_tuple(_0, _1, _2));
 
   auto the_same = compare(std::make_tuple(_0, _1, _2));
 

@@ -122,7 +122,7 @@ namespace sprincle {
    */
   template<size_t Primary, size_t Secondary>
   struct match_pair {
-    enum {
+    enum : size_t {
       primary = Primary,
       secondary = Secondary
     };
@@ -168,28 +168,29 @@ namespace sprincle {
   };
 
 
+  namespace {
+    template<class tuple_t>
+    struct exactly_impl {
+
+      tuple_t expected;
+
+      exactly_impl(tuple_t&& expected) noexcept : expected(expected) {}
+      exactly_impl(const tuple_t& expected) noexcept : expected(expected) {}
+
+      template<class actual_tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
+      bool operator()(actual_tuple_t&& actual) const noexcept {
+        //static_assert(tuple_size<tuple_t>::value == tuple_size<decltype(actual)>::value, "Size of the compared tuples don't match");
+        return compare_tuples_detail(equals(), expected, forward<actual_tuple_t>(actual), I());
+      }
+    };
+  }
+
   /*
    * Predicate filter.
-   * Concepts: TMC, TMA, TCC, TCA, Functor
    */
   template<class tuple_t>
-  struct exactly {
-
-    tuple_t expected;
-
-    exactly(tuple_t&& expected) noexcept : expected(expected) {}
-    exactly(const tuple_t& expected) noexcept : expected(expected) {}
-
-    template<class actual_tuple_t, class I = make_index_sequence<tuple_size<tuple_t>::value>>
-    bool operator()(actual_tuple_t&& actual) const noexcept {
-      //static_assert(tuple_size<tuple_t>::value == tuple_size<decltype(actual)>::value, "Size of the compared tuples don't match");
-      return compare_tuples_detail(equals(), expected, forward<actual_tuple_t>(actual), I());
-    }
-  };
-
-  template<class tuple_t>
-  decltype(auto) make_exactly(tuple_t&& expected) noexcept {
-    return exactly<remove_reference_t<tuple_t>>(forward<tuple_t>(expected));
+  decltype(auto) exactly(tuple_t&& expected) noexcept {
+    return exactly_impl<remove_reference_t<tuple_t>>(forward<tuple_t>(expected));
   }
 
 

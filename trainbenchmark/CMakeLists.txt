@@ -27,6 +27,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 ## Add benchmark executable
 add_executable (LoadModelTest test_load_model.cpp)
+add_executable (QueriesTest test_queries.cpp)
 
 set(LD_DIRS
         ${LD_DIRS}
@@ -39,3 +40,4 @@ set(LD_DIRS
 
 ## Link benchmark executable to libraries
 target_link_libraries(LoadModelTest ${LD_DIRS})
+target_link_libraries(QueriesTest ${LD_DIRS})
