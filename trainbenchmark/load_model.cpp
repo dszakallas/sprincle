@@ -8,6 +8,7 @@
 #include <tuple>
 #include <iostream>
 #include <sstream>
+#include <cerrno>
 #include "load_model.h"
 
 using namespace std;
@@ -79,6 +80,9 @@ namespace {
 
     FILE *file = fopen(filename.c_str(), "r"); //6
 
+    if(!file)
+      throw ENOENT;
+
     //
     raptor_parser_parse_file_stream(rdf_parser, file, filename.c_str(), base_uri);
 
@@ -121,5 +125,3 @@ namespace {
   }
 
 }
-
-

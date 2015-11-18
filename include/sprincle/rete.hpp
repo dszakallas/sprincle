@@ -74,8 +74,10 @@ namespace sprincle {
 
     caf::behavior make_behavior() override {
       return caf::behavior {
-        [=](primary_slot, const delta<tuple_t>& changes) {
-          this->send(next_actor, message_slot::value, changes);
+        [=](const delta<tuple_t>& result) {
+
+          if(!result.positive.empty() || !result.negative.empty())
+            this->send(next_actor, message_slot::value, result);
         },
         others >> [=] {
           //TODO: Print error
@@ -119,7 +121,10 @@ namespace sprincle {
           for(auto i = begin(changes.negative); i != end(changes.negative); ++i)
             negatives.insert(map(*i));
 
-          this->send(next_actor, message_slot::value, delta<projected_change_t>(move(positives), move(negatives)));
+          delta<projected_change_t> result(move(positives), move(negatives));
+
+          if(!result.positive.empty() || !result.negative.empty())
+            this->send(next_actor, message_slot::value, result);
 
         },
         others >> [=] {
@@ -169,10 +174,13 @@ namespace sprincle {
       return caf::behavior {
         [=](primary_slot, const delta<tuple_t>& changes) noexcept {
 
-          this->send(next_actor, message_slot::value, delta<tuple_t>(
+          delta<tuple_t> result(
             filter_impl(predicate, changes.positive),
             filter_impl(predicate, changes.negative)
-          ));
+          );
+
+          if(!result.positive.empty() || !result.negative.empty())
+            this->send(next_actor, message_slot::value, result);
 
         },
         others >> [=] {
@@ -228,6 +236,7 @@ namespace sprincle {
       return {
         [=](primary_slot, const delta<primary_tuple_t>& primaries) noexcept {
 
+
           const auto& negatives = primaries.negative;
           const auto& positives = primaries.positive;
 
@@ -257,7 +266,8 @@ namespace sprincle {
 
           }
 
-          this->send(next_actor, message_atom::value, result);
+          if(!result.positive.empty() || !result.negative.empty())
+            this->send(next_actor, message_atom::value, result);
 
         },
         // TODO fix code duplication
@@ -293,7 +303,8 @@ namespace sprincle {
 
           }
 
-          this->send(next_actor, message_atom::value, result);
+          if(!result.positive.empty() || !result.negative.empty())
+            this->send(next_actor, message_atom::value, result);
 
         },
         others >> [=] {
@@ -364,7 +375,10 @@ namespace sprincle {
 
           }
 
-          this->send(next_actor, message_atom::value, result);
+          if(!result.positive.empty() || !result.negative.empty()) {
+            this->send(next_actor, message_atom::value, result);
+          }
+
 
         },
         [=](secondary_slot, const delta<secondary_tuple_t> &secondaries) noexcept {
@@ -399,8 +413,10 @@ namespace sprincle {
               result.negative.insert(i->second);
 
           }
+          if(!result.positive.empty() || !result.negative.empty()) {
+            this->send(next_actor, message_atom::value, result);
 
-          this->send(next_actor, message_atom::value, result);
+          }
 
         },
         others >> [=] {

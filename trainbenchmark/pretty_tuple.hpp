@@ -6,8 +6,11 @@
 #define SPRINCLE_PRETTY_TUPLE_H
 
 #include <tuple>
+#include <utility>
 #include <iostream>
 #include <sstream>
+
+using namespace std;
 
 // pretty-print a tuple (from http://stackoverflow.com/a/6245777/273767)
 template<class Ch, class Tr, class Tuple, std::size_t... Is>

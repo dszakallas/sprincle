@@ -68,9 +68,5 @@ add_test(NAME DetailTest COMMAND DetailTest ${TEST_ARGS})
 add_test(NAME ReteTest COMMAND ReteTest ${TEST_ARGS})
 
 ## This is from trainbenchmark
-add_test(NAME LoadModelTest COMMAND LoadModelTest ${TEST_ARGS})
-
-
-
-
-
+##add_test(NAME LoadModelTest COMMAND LoadModelTest ${TEST_ARGS})
+add_test(NAME QueriesTest COMMAND QueriesTest ${TEST_ARGS})

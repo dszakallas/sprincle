@@ -16,37 +16,8 @@
 #include <sprincle/rete.hpp>
 #include <sprincle/detail.hpp>
 
-#include "pretty_tuple.h"
-
 using namespace std;
 using namespace sprincle;
-
-/**
- * The tester function can be used to test actors.
- * It will send the given input to the testee, then runs the given assertion function
- * on the message returned.
- * The signature of the assertion function should be
- * <unspecified>(const Input&, const Output&, const actor&, event_based_actor*)
- *   ^                                              ^              ^
- *   |                                              |              |
- *   *- Arbitrary return type               testee -*      tester -*
- */
-template <class Handle, class Input, class Output, class Test>
-void tester(event_based_actor* self, const Handle& testee, const Input& input, const Test& test) {
-  self->link_to(testee);
-  self->on_sync_failure(
-    [=] {
-      BOOST_FAIL("Unexpected response message");
-      self->quit(exit_reason::user_shutdown);
-    }
-  );
-  self->sync_send(testee, input).then([=](const Output& output){
-    test(input, output, testee, self);
-    self->quit(exit_reason::user_shutdown);
-
-  });
-
-}
 
 BOOST_AUTO_TEST_SUITE( ReteTestSuite )
 
@@ -77,7 +48,7 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 
     auto trimmer_actor = spawn_map_node<InputChange>(removeLast, self, primary_slot::value);
 
-    self->sync_send(trimmer_actor, primary_slot::value, changesIn).await([]{}); //wait while trimmer_actor processes the message
+    self->send(trimmer_actor, primary_slot::value, changesIn);
 
     // check trimmer_actor's response
     self->receive(
@@ -148,7 +119,7 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
 
     auto filter_actor = spawn_filter_node<Change>(forall_equals(), self, primary_slot::value);
 
-    self->sync_send(filter_actor, primary_slot::value, changes).await([]{});
+    self->send(filter_actor, primary_slot::value, changes);
 
     self->receive(
       on<primary_slot, delta<Change>>() >> [&](primary_slot, const delta<Change>& changesOut){
@@ -187,7 +158,7 @@ BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
 
   auto filter_actor = spawn_filter_node<Change>(exactly(make_tuple(1,2,3)), self, primary_slot::value);
 
-  self->sync_send(filter_actor, primary_slot::value, changes).await([]{});
+  self->send(filter_actor, primary_slot::value, changes);
 
   self->receive(
     on<primary_slot, delta<Change>>() >> [&](primary_slot, const delta<Change>& changesOut){
@@ -226,17 +197,7 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
     set<PrimaryChange>{}
   );
 
-  self->sync_send(testee, primary_slot::value, primary_1).await([]{});
-
-  self->receive(
-    on<primary_slot, Result>() >> [&](primary_slot, const Result& result) {
-        BOOST_CHECK( !result.positive.size() );
-        BOOST_CHECK( !result.negative.size() );
-    },
-    others >> [=] {
-      BOOST_FAIL( "Unexpected message" );
-    }
-  );
+  self->send(testee, primary_slot::value, primary_1);
 
   delta<SecondaryChange> secondary_1(
     set<SecondaryChange>{
@@ -246,7 +207,7 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
     set<SecondaryChange>{}
   );
 
-  self->sync_send(testee, secondary_slot::value, secondary_1).await([]{});
+  self->send(testee, secondary_slot::value, secondary_1);
 
   self->receive(
     on<primary_slot, Result>() >> [&](primary_slot, const Result& result) {
@@ -268,7 +229,7 @@ BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
     }
   );
 
-  self->sync_send(testee, secondary_slot::value, secondary_2).await([]{});
+  self->send(testee, secondary_slot::value, secondary_2);
 
   self->receive(
     on<primary_slot, Result>() >> [&](primary_slot, const Result& result) {
@@ -307,7 +268,7 @@ BOOST_AUTO_TEST_CASE( AntijoinTestCase_0 ) {
     set<PrimaryChange>{}
   );
 
-  self->sync_send(testee, primary_slot::value, primary_1).await([]{});
+  self->send(testee, primary_slot::value, primary_1);
 
   self->receive(
     on<primary_slot, delta<ResultChange>>() >> [=](primary_slot, const Result& result) {
@@ -330,7 +291,7 @@ BOOST_AUTO_TEST_CASE( AntijoinTestCase_0 ) {
     set<SecondaryChange>{}
   );
 
-  self->sync_send(testee, secondary_slot::value, secondary_1).await([]{});
+  self->send(testee, secondary_slot::value, secondary_1);
 
   self->receive(
     on<primary_slot, delta<ResultChange>>() >> [=](primary_slot, const Result& result) {

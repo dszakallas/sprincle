@@ -22,12 +22,8 @@ add_definitions (-DBOOST_TEST_DYN_LINK)
 
 set(TRAINBENCHMARK_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
-configure_file(config.h.in test_config.h @ONLY)
+configure_file(config.h.in config.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-## Add benchmark executable
-add_executable (LoadModelTest test_load_model.cpp)
-add_executable (QueriesTest test_queries.cpp)
 
 set(LD_DIRS
         ${LD_DIRS}
@@ -38,6 +34,10 @@ set(LD_DIRS
         ${Boost_SYSTEM_LIBRARY}
         ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
 
+## Add benchmark executable
+##add_executable (LoadModelTest test_load_model.cpp)
+add_executable (QueriesTest test_queries.cpp)
+
 ## Link benchmark executable to libraries
-target_link_libraries(LoadModelTest ${LD_DIRS})
+##target_link_libraries(LoadModelTest ${LD_DIRS})
 target_link_libraries(QueriesTest ${LD_DIRS})
