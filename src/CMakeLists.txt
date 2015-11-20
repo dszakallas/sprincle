@@ -12,6 +12,4 @@ add_library(
 target_link_libraries (
         Sprincle
         ${CAF_LIBRARY_CORE}
-        ${CAF_LIBRARY_IO}
-        ${RAPTOR_LIBRARIES}
-)
+        ${CAF_LIBRARY_IO})
