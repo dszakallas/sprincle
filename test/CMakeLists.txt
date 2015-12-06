@@ -17,14 +17,13 @@ add_definitions (-DBOOST_TEST_DYN_LINK)
 add_executable (DetailTest test_detail.cpp)
 add_executable (ReteTest test_rete.cpp)
 
-set(LD_DIRS
-        ${LD_DIRS}
-        Sprincle
-        ${CAF_LIBRARY_CORE}
-        ${CAF_LIBRARY_IO}
-        ${Boost_FILESYSTEM_LIBRARY}
-        ${Boost_SYSTEM_LIBRARY}
-        ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+set(TEST_LIBRARIES
+  Sprincle
+  ${CAF_LIBRARY_CORE}
+  ${CAF_LIBRARY_IO}
+  ${Boost_FILESYSTEM_LIBRARY}
+  ${Boost_SYSTEM_LIBRARY}
+  ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
 
-target_link_libraries (DetailTest ${LD_DIRS})
-target_link_libraries (ReteTest ${LD_DIRS})
+target_link_libraries (DetailTest ${TEST_LIBRARIES})
+target_link_libraries (ReteTest ${TEST_LIBRARIES})

@@ -59,25 +59,36 @@ namespace sprincle {
 
   };
 
-
-  using primary_slot = caf::atom_constant<caf::atom("primary")>;
-  using secondary_slot = caf::atom_constant<caf::atom("secondary")>;
-
-  template<class tuple_t, class message_slot>
-  struct input_node : public event_based_actor {
-
-    using result_tuple_t = tuple_t;
+  struct rete_node : public event_based_actor {
 
     const actor next_actor;
 
-    input_node(const actor& next_actor) : next_actor(next_actor) {}
+    rete_node(const actor& next_actor) : next_actor(next_actor) {
+      this->link_to(next_actor);
+    }
+  };
+
+
+  using primary = caf::atom_constant<caf::atom("primary")>;
+  using secondary = caf::atom_constant<caf::atom("secondary")>;
+  using io_end = caf::atom_constant<caf::atom("io_end")>;
+
+  template<class tuple_t, class message_slot>
+  struct input_node : public rete_node {
+
+    using result_tuple_t = tuple_t;
+
+    input_node(const actor& next_actor) : rete_node(next_actor) {}
 
     caf::behavior make_behavior() override {
       return caf::behavior {
-        [=](const delta<tuple_t>& result) {
+        [=](primary, const delta<tuple_t>& result) {
 
           if(!result.positive.empty() || !result.negative.empty())
             this->send(next_actor, message_slot::value, result);
+        },
+        [=](io_end) {
+          this->send(next_actor, io_end::value);
         },
         others >> [=] {
           //TODO: Print error
@@ -94,20 +105,19 @@ namespace sprincle {
 
 
   template<class tuple_t, class map_t, class message_slot>
-  struct map_node : public event_based_actor {
+  struct map_node : public rete_node {
 
     // just look at this type, xD
     using result_tuple_t = decltype(declval<map_t>()(declval<typename delta<tuple_t>::change_t>()));
 
     const map_t map;
-    const actor next_actor;
 
-    map_node(const map_t& map, const actor& next_actor) : map(map), next_actor(next_actor) {};
+    map_node(const map_t& map, const actor& next_actor) : rete_node(next_actor), map(map) {};
 
     caf::behavior make_behavior() override {
       return caf::behavior {
 
-        [=](primary_slot, const delta<tuple_t>& changes) {
+        [=](primary, const delta<tuple_t>& changes) {
 
           using projected_change_t = result_tuple_t;
           using projected_changeset_t = typename delta<projected_change_t>::changeset_t;
@@ -126,6 +136,9 @@ namespace sprincle {
           if(!result.positive.empty() || !result.negative.empty())
             this->send(next_actor, message_slot::value, result);
 
+        },
+        [=](io_end) {
+          this->send(next_actor, io_end::value);
         },
         others >> [=] {
           //TODO: Print error
@@ -161,18 +174,17 @@ namespace sprincle {
    * Can be an Equality Node, Inequality Node and Predicate Evaluator
    */
   template<class tuple_t, class predicate_t, class message_slot>
-  struct filter_node : public event_based_actor {
+  struct filter_node : public rete_node {
 
     using result_tuple_t = tuple_t;
 
     const predicate_t predicate;
-    const actor next_actor;
 
-    filter_node(const predicate_t& predicate, const actor& next_actor) : predicate(predicate), next_actor(next_actor) {};
+    filter_node(const predicate_t& predicate, const actor& next_actor) : rete_node(next_actor), predicate(predicate) {};
 
     caf::behavior make_behavior() override {
       return caf::behavior {
-        [=](primary_slot, const delta<tuple_t>& changes) noexcept {
+        [=](primary, const delta<tuple_t>& changes) noexcept {
 
           delta<tuple_t> result(
             filter_impl(predicate, changes.positive),
@@ -183,6 +195,9 @@ namespace sprincle {
             this->send(next_actor, message_slot::value, result);
 
         },
+        [=](io_end) {
+          this->send(next_actor, io_end::value);
+        },
         others >> [=] {
           //TODO: Print error
         }
@@ -191,7 +206,7 @@ namespace sprincle {
   };
 
   //TODO Generalize later
-  template<class tuple_t, class predicate_t, class message_slot = primary_slot>
+  template<class tuple_t, class predicate_t, class message_slot = primary>
   decltype(auto) spawn_filter_node(const predicate_t& predicate, const actor& next_actor, message_slot) noexcept {
     return spawn<filter_node<tuple_t, predicate_t, message_slot>>(predicate, next_actor);
   };
@@ -199,7 +214,7 @@ namespace sprincle {
   //TODO variadic message_atoms
   template<class primary_tuple_t, class secondary_tuple_t, class message_atom, class... match_pairs>
   struct join_node :
-    public event_based_actor,
+    public rete_node,
     public memory<
       typename project<(match_pairs::primary)...>::template projected_t<primary_tuple_t>,
       primary_tuple_t,
@@ -222,9 +237,7 @@ namespace sprincle {
     using secondary_only_t = typename decltype(make_project<secondary_only_seq_t>())::template projected_t<secondary_tuple_t>;
     using result_tuple_t = decltype(tuple_cat(declval<primary_tuple_t>(), declval<secondary_only_t>()));
 
-    const actor next_actor;
-
-    join_node(const actor& next_actor) : next_actor(next_actor) {};
+    join_node(const actor& next_actor) : rete_node(next_actor) {};
 
     caf::behavior make_behavior() override {
       auto primary_only = make_project<primary_only_seq_t>();
@@ -234,7 +247,7 @@ namespace sprincle {
       project<(match_pairs::secondary)...> secondary_match;
 
       return {
-        [=](primary_slot, const delta<primary_tuple_t>& primaries) noexcept {
+        [=](primary, const delta<primary_tuple_t>& primaries) noexcept {
 
 
           const auto& negatives = primaries.negative;
@@ -271,7 +284,7 @@ namespace sprincle {
 
         },
         // TODO fix code duplication
-        [=](secondary_slot, const delta<secondary_tuple_t>& secondary_delta) noexcept {
+        [=](secondary, const delta<secondary_tuple_t>& secondary_delta) noexcept {
 
           const auto& negatives = secondary_delta.negative;
           const auto& positives = secondary_delta.positive;
@@ -307,6 +320,9 @@ namespace sprincle {
             this->send(next_actor, message_atom::value, result);
 
         },
+        [=](io_end) {
+          this->send(next_actor, io_end::value);
+        },
         others >> [=] {
           //TODO: Print error
         }
@@ -322,7 +338,7 @@ namespace sprincle {
 
   template<class primary_tuple_t, class secondary_tuple_t, class message_atom, class... match_pairs>
   struct antijoin_node :
-    public event_based_actor,
+    public rete_node,
     public memory<
       typename project<(match_pairs::primary)...>::template projected_t<primary_tuple_t>,
       primary_tuple_t,
@@ -332,9 +348,7 @@ namespace sprincle {
     using match_t = typename project<(match_pairs::primary)...>::template projected_t<primary_tuple_t>;
     using result_tuple_t = primary_tuple_t;
 
-    const actor next_actor;
-
-    antijoin_node(const actor& next_actor) : next_actor(next_actor) {};
+    antijoin_node(const actor& next_actor) : rete_node(next_actor) {};
 
     caf::behavior make_behavior() override {
 
@@ -342,7 +356,7 @@ namespace sprincle {
       project<(match_pairs::secondary)...> secondary_match;
 
       return {
-        [=](primary_slot, const delta<primary_tuple_t> &primaries) noexcept {
+        [=](primary, const delta<primary_tuple_t> &primaries) noexcept {
 
           const auto& negatives = primaries.negative;
           const auto& positives = primaries.positive;
@@ -381,7 +395,7 @@ namespace sprincle {
 
 
         },
-        [=](secondary_slot, const delta<secondary_tuple_t> &secondaries) noexcept {
+        [=](secondary, const delta<secondary_tuple_t> &secondaries) noexcept {
 
           const auto& negatives = secondaries.negative;
           const auto& positives = secondaries.positive;
@@ -419,6 +433,9 @@ namespace sprincle {
           }
 
         },
+        [=](io_end) {
+          this->send(next_actor, io_end::value);
+        },
         others >> [=] {
           //TODO: Print error
         }
@@ -431,10 +448,7 @@ namespace sprincle {
     return spawn<antijoin_node<primary_tuple_t, secondary_tuple_t, message_atom, match_pairs...>>(next_actor);
   };
 
-
-
 }
-
 
 
 
