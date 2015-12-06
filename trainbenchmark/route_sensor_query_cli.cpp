@@ -45,8 +45,9 @@ void route_sensor_query(const string& filename) {
 
     self->do_receive(
       on<primary, delta<output_t>>() >> [&](primary, const delta<output_t>& output) {
-        cout << ++calls << endl;
-        matches.erase(begin(output.negative), end(output.negative));
+        for(const auto& negative : output.negative)
+          matches.erase(negative);
+
         matches.insert(begin(output.positive), end(output.positive));
       },
       on<io_end>() >> [&](io_end){
@@ -91,7 +92,7 @@ int main(int argc, char* argv[]) {
   if (vm.count("file")) {
     route_sensor_query(vm["file"].as<string>());
   } else {
-      cout << "Filename required.\n";
+      cout << "--file required.\n";
   }
 
 
