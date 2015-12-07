@@ -99,214 +99,218 @@ BOOST_AUTO_TEST_CASE( TrimmerTestCase_0 ) {
 /*
  * Tests
  */
-// BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
-//
-//     using Change = tuple<long, long, long>;
-//
-//     delta<Change> changes(
-//       //positive
-//       set<Change>{
-//         make_tuple(1,2,3)
-//       },
-//       //negative
-//       set<Change>{
-//         make_tuple(9,9,9),
-//         make_tuple(1,6,3)
-//       }
-//     );
-//
-//     scoped_actor self;
-//
-//     auto filter_actor = spawn_filter_node<Change>(forall_equals(), self, primary::value);
-//
-//     self->send(filter_actor, primary::value, changes);
-//
-//     self->receive(
-//       on<primary, delta<Change>>() >> [&](primary, const delta<Change>& changesOut){
-//         BOOST_CHECK(changesOut.positive.size() == 0);
-//         BOOST_CHECK(changesOut.negative.size() == 1);
-//       },
-//       others >> [=] {
-//         BOOST_FAIL( "Unexpected message" );
-//       }
-//     );
-//
-//     self->send_exit(filter_actor, exit_reason::user_shutdown);
-//
-// }
-//
-// /**
-//  * Test Predicate Evaluator Node
-//  */
-// BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
-//
-//   using Change = tuple<long, long, long>;
-//
-//   delta<Change> changes(
-//     //positive
-//     set<Change>{
-//       make_tuple(1,2,3)
-//     },
-//     //negative
-//     set<Change>{
-//       make_tuple(9,9,9),
-//       make_tuple(1,6,3)
-//     }
-//   );
-//
-//   scoped_actor self;
-//
-//   auto filter_actor = spawn_filter_node<Change>(exactly(make_tuple(1,2,3)), self, primary::value);
-//
-//   self->send(filter_actor, primary::value, changes);
-//
-//   self->receive(
-//     on<primary, delta<Change>>() >> [&](primary, const delta<Change>& changesOut){
-//       BOOST_CHECK( changesOut.positive.size() == 1 );
-//       BOOST_CHECK( changesOut.negative.size() == 0 );
-//       BOOST_CHECK( changesOut.positive.find(make_tuple(1,2,3)) != end(changesOut.positive) );
-//     },
-//     others >> [=] {
-//       BOOST_FAIL( "Unexpected message" );
-//     }
-//   );
-//
-//   self->send_exit(filter_actor, exit_reason::user_shutdown);
-//
-// }
-//
-// BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
-//
-//   using PrimaryChange = tuple<int, long, long>;
-//   using SecondaryChange = tuple<int, string, string>;
-//
-//   scoped_actor self;
-//
-//   auto testee = spawn_join_node<PrimaryChange, SecondaryChange, match_pair<0,0>>(self, primary::value);
-//
-//   //TODO clean this up later
-//   using ResultChange = typename join_node<PrimaryChange, SecondaryChange, primary, match_pair<0,0>>::result_tuple_t;
-//
-//   using Result = delta<ResultChange>;
-//
-//   delta<PrimaryChange> primary_1(
-//     set<PrimaryChange>{
-//       make_tuple(1,1l,1l),
-//       make_tuple(2,2l,2l)
-//     },
-//     set<PrimaryChange>{}
-//   );
-//
-//   self->send(testee, primary::value, primary_1);
-//
-//   delta<SecondaryChange> secondary_1(
-//     set<SecondaryChange>{
-//       make_tuple(1,string("England"),string("London")),
-//       make_tuple(1,string("Hungary"),string("Budapest"))
-//     },
-//     set<SecondaryChange>{}
-//   );
-//
-//   self->send(testee, secondary::value, secondary_1);
-//
-//   self->receive(
-//     on<primary, Result>() >> [&](primary, const Result& result) {
-//       BOOST_CHECK( (result.positive.size()==2) );
-//       BOOST_CHECK( !result.negative.size() );
-//
-//       BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l,string("England"),string("London"))) != end(result.positive)) );
-//       BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l,string("Hungary"),string("Budapest"))) != end(result.positive)) );
-//     },
-//     others >> [=] {
-//       BOOST_FAIL( "Unexpected message" );
-//     }
-//   );
-//
-//   delta<SecondaryChange> secondary_2(
-//     set<SecondaryChange>{ },
-//     set<SecondaryChange>{
-//       make_tuple(1,string("England"),string("London"))
-//     }
-//   );
-//
-//   self->send(testee, secondary::value, secondary_2);
-//
-//   self->receive(
-//     on<primary, Result>() >> [&](primary, const Result& result) {
-//       BOOST_CHECK( !result.positive.size() );
-//       BOOST_CHECK( (result.negative.size() == 1) );
-//
-//       //can blow up
-//       BOOST_CHECK( (result.negative.find(make_tuple(1,1l,1l,string("England"),string("London"))) != end(result.negative)) );
-//     },
-//     others >> [=] {
-//       BOOST_FAIL( "Unexpected message" );
-//     }
-//   );
-//   self->send_exit(testee, exit_reason::user_shutdown);
-//
-// }
-//
-// BOOST_AUTO_TEST_CASE( AntijoinTestCase_0 ) {
-//
-//   using PrimaryChange = tuple<int, long, long>;
-//   using SecondaryChange = tuple<int, string, string>;
-//
-//   scoped_actor self;
-//
-//   auto testee = spawn_antijoin_node<PrimaryChange, SecondaryChange, match_pair<0,0>>(self, primary::value);
-//
-//   using ResultChange = typename antijoin_node<PrimaryChange, SecondaryChange, primary, match_pair<0,0>>::result_tuple_t;
-//
-//   using Result = delta<ResultChange>;
-//
-//   delta<PrimaryChange> primary_1(
-//     set<PrimaryChange>{
-//       make_tuple(1,1l,1l),
-//       make_tuple(2,2l,2l)
-//     },
-//     set<PrimaryChange>{}
-//   );
-//
-//   self->send(testee, primary::value, primary_1);
-//
-//   self->receive(
-//     on<primary, delta<ResultChange>>() >> [=](primary, const Result& result) {
-//       BOOST_CHECK( (result.positive.size()==2) );
-//       BOOST_CHECK( !result.negative.size() );
-//
-//       BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l)) != end(result.positive)) );
-//       BOOST_CHECK( (result.positive.find(make_tuple(2,2l,2l)) != end(result.positive)) );
-//     },
-//     others >> [=] {
-//       BOOST_FAIL( "Unexpected message" );
-//     }
-//   );
-//
-//   delta<SecondaryChange> secondary_1(
-//     set<SecondaryChange>{
-//       make_tuple(1,string("England"),string("London")),
-//       make_tuple(1,string("Hungary"),string("Budapest"))
-//     },
-//     set<SecondaryChange>{}
-//   );
-//
-//   self->send(testee, secondary::value, secondary_1);
-//
-//   self->receive(
-//     on<primary, delta<ResultChange>>() >> [=](primary, const Result& result) {
-//       BOOST_CHECK( !result.positive.size() );
-//       BOOST_CHECK( (result.negative.size()==1) );
-//
-//       BOOST_CHECK( (result.negative.find(make_tuple(1,1l,1l)) != end(result.negative)) );
-//     },
-//     others >> [=] {
-//       BOOST_FAIL( "Unexpected message" );
-//     }
-//   );
-//
-//   self->send_exit(testee, exit_reason::user_shutdown);
-//
-// }
+BOOST_AUTO_TEST_CASE( FilterTestCase_0 ) {
+
+    using Change = tuple<long, long, long>;
+
+    delta<Change> changes(
+      //positive
+      set<Change>{
+        make_tuple(1,2,3)
+      },
+      //negative
+      set<Change>{
+        make_tuple(9,9,9),
+        make_tuple(1,6,3)
+      }
+    );
+
+    scoped_actor self;
+
+    auto filter_actor = spawn_filter_node<Change>(forall_equals(), self, primary::value);
+
+    self->link_to(filter_actor);
+
+    self->send(filter_actor, primary::value, changes);
+
+    self->receive(
+      on<primary, delta<Change>>() >> [&](primary, const delta<Change>& changesOut){
+        BOOST_CHECK(changesOut.positive.size() == 0);
+        BOOST_CHECK(changesOut.negative.size() == 1);
+      },
+      others >> [=] {
+        BOOST_FAIL( "Unexpected message" );
+      }
+    );
+
+
+}
+
+/**
+ * Test Predicate Evaluator Node
+ */
+BOOST_AUTO_TEST_CASE( FilterTestCase_1 ) {
+
+  using Change = tuple<long, long, long>;
+
+  delta<Change> changes(
+    //positive
+    set<Change>{
+      make_tuple(1,2,3)
+    },
+    //negative
+    set<Change>{
+      make_tuple(9,9,9),
+      make_tuple(1,6,3)
+    }
+  );
+
+  scoped_actor self;
+
+  auto filter_actor = spawn_filter_node<Change>(exactly(make_tuple(1,2,3)), self, primary::value);
+
+  self->link_to(filter_actor);
+
+  self->send(filter_actor, primary::value, changes);
+
+  self->receive(
+    on<primary, delta<Change>>() >> [&](primary, const delta<Change>& changesOut){
+      BOOST_CHECK( changesOut.positive.size() == 1 );
+      BOOST_CHECK( changesOut.negative.size() == 0 );
+      BOOST_CHECK( changesOut.positive.find(make_tuple(1,2,3)) != end(changesOut.positive) );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
+    }
+  );
+
+  self->send_exit(filter_actor, exit_reason::user_shutdown);
+
+}
+
+BOOST_AUTO_TEST_CASE( JoinTestCase_0 ) {
+
+  using PrimaryChange = tuple<int, long, long>;
+  using SecondaryChange = tuple<int, string, string>;
+
+  scoped_actor self;
+
+  auto testee = spawn_join_node<PrimaryChange, SecondaryChange, match_pair<0,0>>(self, primary::value);
+
+  self->link_to(testee);
+
+  //TODO clean this up later
+  using ResultChange = typename join_node<PrimaryChange, SecondaryChange, primary, match_pair<0,0>>::result_tuple_t;
+
+  using Result = delta<ResultChange>;
+
+  delta<PrimaryChange> primary_1(
+    set<PrimaryChange>{
+      make_tuple(1,1l,1l),
+      make_tuple(2,2l,2l)
+    },
+    set<PrimaryChange>{}
+  );
+
+  self->send(testee, primary::value, primary_1);
+
+  delta<SecondaryChange> secondary_1(
+    set<SecondaryChange>{
+      make_tuple(1,string("England"),string("London")),
+      make_tuple(1,string("Hungary"),string("Budapest"))
+    },
+    set<SecondaryChange>{}
+  );
+
+  self->send(testee, secondary::value, secondary_1);
+
+  self->receive(
+    on<primary, Result>() >> [&](primary, const Result& result) {
+      BOOST_CHECK( (result.positive.size()==2) );
+      BOOST_CHECK( !result.negative.size() );
+
+      BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l,string("England"),string("London"))) != end(result.positive)) );
+      BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l,string("Hungary"),string("Budapest"))) != end(result.positive)) );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
+    }
+  );
+
+  delta<SecondaryChange> secondary_2(
+    set<SecondaryChange>{ },
+    set<SecondaryChange>{
+      make_tuple(1,string("England"),string("London"))
+    }
+  );
+
+  self->send(testee, secondary::value, secondary_2);
+
+  self->receive(
+    on<primary, Result>() >> [&](primary, const Result& result) {
+      BOOST_CHECK( !result.positive.size() );
+      BOOST_CHECK( (result.negative.size() == 1) );
+
+      //can blow up
+      BOOST_CHECK( (result.negative.find(make_tuple(1,1l,1l,string("England"),string("London"))) != end(result.negative)) );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
+    }
+  );
+
+}
+
+BOOST_AUTO_TEST_CASE( AntijoinTestCase_0 ) {
+
+  using PrimaryChange = tuple<int, long, long>;
+  using SecondaryChange = tuple<int, string, string>;
+
+  scoped_actor self;
+
+  auto testee = spawn_antijoin_node<PrimaryChange, SecondaryChange, match_pair<0,0>>(self, primary::value);
+
+  using ResultChange = typename antijoin_node<PrimaryChange, SecondaryChange, primary, match_pair<0,0>>::result_tuple_t;
+
+  using Result = delta<ResultChange>;
+
+  delta<PrimaryChange> primary_1(
+    set<PrimaryChange>{
+      make_tuple(1,1l,1l),
+      make_tuple(2,2l,2l)
+    },
+    set<PrimaryChange>{}
+  );
+
+  self->link_to(testee);
+
+  self->send(testee, primary::value, primary_1);
+
+  self->receive(
+    on<primary, delta<ResultChange>>() >> [=](primary, const Result& result) {
+      BOOST_CHECK( (result.positive.size()==2) );
+      BOOST_CHECK( !result.negative.size() );
+
+      BOOST_CHECK( (result.positive.find(make_tuple(1,1l,1l)) != end(result.positive)) );
+      BOOST_CHECK( (result.positive.find(make_tuple(2,2l,2l)) != end(result.positive)) );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
+    }
+  );
+
+  delta<SecondaryChange> secondary_1(
+    set<SecondaryChange>{
+      make_tuple(1,string("England"),string("London")),
+      make_tuple(1,string("Hungary"),string("Budapest"))
+    },
+    set<SecondaryChange>{}
+  );
+
+  self->send(testee, secondary::value, secondary_1);
+
+  self->receive(
+    on<primary, delta<ResultChange>>() >> [=](primary, const Result& result) {
+      BOOST_CHECK( !result.positive.size() );
+      BOOST_CHECK( (result.negative.size()==1) );
+
+      BOOST_CHECK( (result.negative.find(make_tuple(1,1l,1l)) != end(result.negative)) );
+    },
+    others >> [=] {
+      BOOST_FAIL( "Unexpected message" );
+    }
+  );
+
+}
 
 BOOST_AUTO_TEST_SUITE_END( )

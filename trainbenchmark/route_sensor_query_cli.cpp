@@ -32,7 +32,7 @@ void route_sensor_query(const string& filename) {
   size_t inputs_closed = 0;
   size_t calls = 0;
 
-  auto read = measure<>::duration([&]{
+  auto read_time = measure<>::duration([&]{
 
     using namespace std::placeholders;
 
@@ -60,15 +60,14 @@ void route_sensor_query(const string& filename) {
 
   });
 
-  auto check = measure<>::duration([&]{
-    cout << "Matches:" << endl;
-    cout << "--------" << endl;
-    for(const auto& match : matches)
-      cout << match << endl;
+
+  auto check_time = measure<>::duration([&]{
+    matches.size();
   });
 
-  cout << "Read: " << read.count() << endl;
-  cout << "Check: " << check.count() << endl;
+  cout << read_time.count() << endl;
+  cout << check_time.count() << endl;
+  cout << matches.size() << endl;
 
 }
 
@@ -80,8 +79,11 @@ int main(int argc, char* argv[]) {
       ("file", po::value<string>(), "load model file")
   ;
 
+  po::positional_options_description pd;
+  pd.add("file", 1);
+
   po::variables_map vm;
-  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::store(po::command_line_parser(argc, argv).options(desc).positional(pd).run(), vm);
   po::notify(vm);
 
   if (vm.count("help")) {
@@ -91,9 +93,5 @@ int main(int argc, char* argv[]) {
 
   if (vm.count("file")) {
     route_sensor_query(vm["file"].as<string>());
-  } else {
-      cout << "--file required.\n";
   }
-
-
 }

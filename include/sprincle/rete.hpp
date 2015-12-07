@@ -66,6 +66,10 @@ namespace sprincle {
     rete_node(const actor& next_actor) : next_actor(next_actor) {
       this->link_to(next_actor);
     }
+
+    rete_node(actor&& next_actor) : next_actor(next_actor) {
+      this->link_to(next_actor);
+    }
   };
 
 
@@ -79,6 +83,8 @@ namespace sprincle {
     using result_tuple_t = tuple_t;
 
     input_node(const actor& next_actor) : rete_node(next_actor) {}
+
+    input_node(actor&& next_actor) : rete_node(next_actor) {}
 
     caf::behavior make_behavior() override {
       return caf::behavior {
@@ -134,7 +140,7 @@ namespace sprincle {
           delta<projected_change_t> result(move(positives), move(negatives));
 
           if(!result.positive.empty() || !result.negative.empty())
-            this->send(next_actor, message_slot::value, result);
+            this->send(next_actor, message_slot::value, move(result));
 
         },
         [=](io_end) {
@@ -165,7 +171,7 @@ namespace sprincle {
           (forward<predicate_t>(p), end(forward<container_t>(v)), end(forward<container_t>(v)))
       );
 
-      return remove_reference_t<container_t>(good.begin(), good.end());
+      return remove_reference_t<container_t>(move(good.begin()), move(good.end()));
     };
 
   }
@@ -192,7 +198,7 @@ namespace sprincle {
           );
 
           if(!result.positive.empty() || !result.negative.empty())
-            this->send(next_actor, message_slot::value, result);
+            this->send(next_actor, message_slot::value, move(result));
 
         },
         [=](io_end) {
@@ -280,7 +286,7 @@ namespace sprincle {
           }
 
           if(!result.positive.empty() || !result.negative.empty())
-            this->send(next_actor, message_atom::value, result);
+            this->send(next_actor, message_atom::value, move(result));
 
         },
         // TODO fix code duplication
@@ -317,7 +323,7 @@ namespace sprincle {
           }
 
           if(!result.positive.empty() || !result.negative.empty())
-            this->send(next_actor, message_atom::value, result);
+            this->send(next_actor, message_atom::value, move(result));
 
         },
         [=](io_end) {
@@ -390,7 +396,7 @@ namespace sprincle {
           }
 
           if(!result.positive.empty() || !result.negative.empty()) {
-            this->send(next_actor, message_atom::value, result);
+            this->send(next_actor, message_atom::value, move(result));
           }
 
 
@@ -428,7 +434,7 @@ namespace sprincle {
 
           }
           if(!result.positive.empty() || !result.negative.empty()) {
-            this->send(next_actor, message_atom::value, result);
+            this->send(next_actor, message_atom::value, move(result));
 
           }
 

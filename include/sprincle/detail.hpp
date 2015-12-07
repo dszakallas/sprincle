@@ -101,8 +101,8 @@ namespace sprincle {
     using projected_t = tuple<typename tuple_element<Indices, tuple_t>::type...>;
 
     template<class tuple_t>
-    decltype(auto) operator()(const tuple_t& t) const noexcept {
-      return tuple<typename tuple_element<Indices, tuple_t>::type...>(get<Indices>(t)...);
+    decltype(auto) operator()(tuple_t&& t) const noexcept {
+      return tuple<typename tuple_element<Indices, remove_reference_t<tuple_t>>::type...>(get<Indices>(forward<tuple_t>(t))...);
     }
   };
 

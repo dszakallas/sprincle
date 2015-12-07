@@ -59,3 +59,6 @@ target_link_libraries(RouteSensorQueryCLI
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${CPPNETLIB_LIBRARIES}
   ${RAPTOR_LIBRARIES})
+
+  configure_file(measure_queries.py measure_queries.py COPYONLY)
+  install(FILES measure_queries.py DESTINATION bin)
