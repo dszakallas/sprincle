@@ -377,7 +377,7 @@ namespace sprincle {
             auto match_range = this->secondary_indexer.equal_range(key);
 
             //If no match found
-            if(match_range.first == end(this->secondary_indexer))
+            if(match_range.first == match_range.second)
               result.negative.insert(negative);
 
           }
@@ -390,7 +390,7 @@ namespace sprincle {
             auto match_range = this->secondary_indexer.equal_range(key);
 
             //If no match found
-            if(match_range.first == end(this->secondary_indexer))
+            if(match_range.first == match_range.second)
               result.positive.insert(positive);
 
           }

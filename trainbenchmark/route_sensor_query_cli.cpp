@@ -20,23 +20,71 @@
 
 namespace po = boost::program_options;
 
-void route_sensor_query(const string& filename) {
-  using ulong = unsigned long;
+//callback on triple read
+void parse_triple(
+  delta<route_sensor::edge_t>::changeset_t& in_switch,
+  delta<route_sensor::edge_t>::changeset_t& in_sensor,
+  delta<route_sensor::edge_t>::changeset_t& in_follows,
+  delta<route_sensor::edge_t>::changeset_t& in_definedBy,
+  string&& subject, string&& predicate, string&& object) {
 
-  using edge_t = tuple<ulong, ulong>;
-  using output_t = tuple<ulong, ulong, ulong, ulong>;
+  if(net::uri::uri(predicate).fragment() == string("switch")) {
+    in_switch.insert(
+      make_tuple(
+        stol(net::uri::uri(subject).fragment().substr(1)),
+        stol(net::uri::uri(object).fragment().substr(1))
+      )
+    );
+  } else if(net::uri::uri(predicate).fragment() == string("follows")) {
+    in_follows.insert(
+      make_tuple(
+        stol(net::uri::uri(subject).fragment().substr(1)),
+        stol(net::uri::uri(object).fragment().substr(1))
+      )
+    );
+  } else if(net::uri::uri(predicate).fragment() == string("sensor")) {
+    in_sensor.insert(
+      make_tuple(
+        stol(net::uri::uri(subject).fragment().substr(1)),
+        stol(net::uri::uri(object).fragment().substr(1))
+      )
+    );
+  } else if(net::uri::uri(predicate).fragment() == string("definedBy")) {
+    in_definedBy.insert(
+      make_tuple(
+        stol(net::uri::uri(subject).fragment().substr(1)),
+        stol(net::uri::uri(object).fragment().substr(1))
+      )
+    );
+  }
+}
+
+void route_sensor_query(const string& filename) {
+
+  using edge_t = route_sensor::edge_t;
+  using output_t = route_sensor::output_t;
 
   scoped_actor self;
   route_sensor::network network(self);
+  delta<edge_t> in_switch;
+  delta<edge_t> in_sensor;
+  delta<edge_t> in_follows;
+  delta<edge_t> in_definedBy;
   typename delta<output_t>::changeset_t matches;
   size_t inputs_closed = 0;
   size_t calls = 0;
 
+  using namespace std::placeholders;
+
+  read_turtle(filename, bind(parse_triple,
+    ref(in_switch.positive), ref(in_sensor.positive),
+    ref(in_follows.positive), ref(in_definedBy.positive), _1, _2, _3));
+
   auto read_time = measure<>::duration([&]{
-
-    using namespace std::placeholders;
-
-    read_turtle(filename, bind(route_sensor::on_triple<decltype(self)>, cref(self), cref(network), _1, _2, _3));
+    self->send(network.in_switch, primary::value, in_switch);
+    self->send(network.in_follows, primary::value, in_follows);
+    self->send(network.in_sensor, primary::value, in_sensor);
+    self->send(network.in_definedBy, primary::value, in_definedBy);
 
     self->send(network.in_switch, io_end::value);
     self->send(network.in_follows, io_end::value);
@@ -52,10 +100,11 @@ void route_sensor_query(const string& filename) {
       },
       on<io_end>() >> [&](io_end){
         ++inputs_closed;
-      },
-      after(chrono::seconds(5)) >> [&]{
-        self->quit();
       }
+      // },
+      // after(chrono::seconds(5)) >> [&]{
+      //   self->quit();
+      // }
     ).until([&] { return inputs_closed == network.input_size; });
 
   });

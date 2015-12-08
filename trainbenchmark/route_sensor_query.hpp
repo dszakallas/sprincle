@@ -26,6 +26,7 @@ namespace sprincle {
       using join_node_0_t = join_node<edge_t, edge_t, primary, match_pair<0,1>>;
       using join_node_1_t = join_node<join_node_0_t::result_tuple_t, edge_t, primary, match_pair<1,0>>;
       using antijoin_node_0_t = antijoin_node<join_node_1_t::result_tuple_t, edge_t, primary, match_pair<2,0>, match_pair<3,1>>;
+      using output_t = antijoin_node_0_t::result_tuple_t;
 
       const actor antijoin_node_0;
       const actor join_node_1;
@@ -55,65 +56,7 @@ namespace sprincle {
     };
 
     using edge_t = typename network::edge_t;
-
-    //callback on triple read
-    template<class Actor>
-    void on_triple(const Actor& self, const network& network, string&& subject, string&& predicate, string&& object) {
-
-      if(net::uri::uri(predicate).fragment() == string("switch")) {
-        self->send(
-          network.in_switch,
-          primary::value,
-          delta<edge_t> {
-            set<edge_t> {
-              make_tuple(
-                stol(net::uri::uri(subject).fragment().substr(1)),
-                stol(net::uri::uri(object).fragment().substr(1))
-              )
-            },
-            set<edge_t> { /* no negatives */ }
-          });
-      } else if(net::uri::uri(predicate).fragment() == string("follows")) {
-        self->send(
-          network.in_follows,
-          primary::value,
-          delta<edge_t> {
-            set<edge_t> {
-              make_tuple(
-                stol(net::uri::uri(subject).fragment().substr(1)),
-                stol(net::uri::uri(object).fragment().substr(1))
-              )
-            },
-            set<edge_t> { /* no negatives */ }
-          });
-      } else if(net::uri::uri(predicate).fragment() == string("sensor")) {
-        self->send(
-          network.in_sensor,
-          primary::value,
-          delta<edge_t> {
-            set<edge_t> {
-              make_tuple(
-                stol(net::uri::uri(subject).fragment().substr(1)),
-                stol(net::uri::uri(object).fragment().substr(1))
-              )
-            },
-            set<edge_t> { /* no negatives */ }
-          });
-      } else if(net::uri::uri(predicate).fragment() == string("definedBy")) {
-        self->send(
-          network.in_definedBy,
-          primary::value,
-          delta<edge_t> {
-            set<edge_t> {
-              make_tuple(
-                stol(net::uri::uri(subject).fragment().substr(1)),
-                stol(net::uri::uri(object).fragment().substr(1))
-              )
-            },
-            set<edge_t> { /* no negatives */ }
-          });
-      }
-    }
+    using output_t = typename network::output_t;
 
   }
 
