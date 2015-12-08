@@ -9,6 +9,8 @@
 #include <utility>
 #include <map>
 #include <set>
+#include <array>
+#include <chrono>
 
 #include <boost/iterator/filter_iterator.hpp>
 #include <boost/range.hpp>
@@ -64,10 +66,12 @@ namespace sprincle {
     const actor next_actor;
 
     rete_node(const actor& next_actor) : next_actor(next_actor) {
+      this->trap_exit(true);
       this->link_to(next_actor);
     }
 
     rete_node(actor&& next_actor) : next_actor(next_actor) {
+      this->trap_exit(true);
       this->link_to(next_actor);
     }
   };
@@ -76,6 +80,66 @@ namespace sprincle {
   using primary = caf::atom_constant<caf::atom("primary")>;
   using secondary = caf::atom_constant<caf::atom("secondary")>;
   using io_end = caf::atom_constant<caf::atom("io_end")>;
+
+  using empty = caf::atom_constant<caf::atom("empty")>;
+  template<class tuple_t, size_t n, class message_slot>
+  struct buffered_input_node : public rete_node {
+
+    using result_tuple_t = tuple_t;
+
+    array<tuple_t, n> buffer;
+    size_t i = 0;
+
+    buffered_input_node(const actor& next_actor) : rete_node(next_actor) {
+      //delayed_send(this, delay, empty::value);
+    }
+
+    void flush_buffer() {
+      auto result = delta<tuple_t> {
+        set<tuple_t> (begin(buffer), begin(buffer) + i),
+        set<tuple_t> {}
+      };
+      send(next_actor, message_slot::value, result);
+      i = 0;
+    }
+
+    caf::behavior make_behavior() override {
+      return caf::behavior {
+        [&](primary, const tuple_t& input) {
+
+          buffer[i] = input;
+          ++i;
+
+          if(i == n) {
+            flush_buffer();
+          }
+
+        },
+        /*[&](empty) {
+          if(i) {
+            auto result = delta<tuple_t> {
+              set<tuple_t> (begin(buffer), begin(buffer) + i),
+              set<tuple_t> {}
+            };
+            cout << "E " << i << endl;
+            send(next_actor, message_slot::value, result);
+            delayed_send(this, delay, empty::value);
+            i = 0;
+          }
+        },*/
+        [&](io_end) {
+
+          if(i) {
+            flush_buffer();
+          }
+          this->send(next_actor, io_end::value);
+        },
+        others >> [&] {
+          //TODO: Print error
+        }
+      };
+    }
+  };
 
   template<class tuple_t, class message_slot>
   struct input_node : public rete_node {
@@ -88,15 +152,15 @@ namespace sprincle {
 
     caf::behavior make_behavior() override {
       return caf::behavior {
-        [=](primary, const delta<tuple_t>& result) {
+        [&](primary, const delta<tuple_t>& result) {
 
           if(!result.positive.empty() || !result.negative.empty())
             this->send(next_actor, message_slot::value, result);
         },
-        [=](io_end) {
+        [&](io_end) {
           this->send(next_actor, io_end::value);
         },
-        others >> [=] {
+        others >> [&] {
           //TODO: Print error
         }
       };
@@ -123,7 +187,7 @@ namespace sprincle {
     caf::behavior make_behavior() override {
       return caf::behavior {
 
-        [=](primary, const delta<tuple_t>& changes) {
+        [&](primary, const delta<tuple_t>& changes) {
 
           using projected_change_t = result_tuple_t;
           using projected_changeset_t = typename delta<projected_change_t>::changeset_t;
@@ -143,10 +207,10 @@ namespace sprincle {
             this->send(next_actor, message_slot::value, move(result));
 
         },
-        [=](io_end) {
+        [&](io_end) {
           this->send(next_actor, io_end::value);
         },
-        others >> [=] {
+        others >> [&] {
           //TODO: Print error
         }
       };
@@ -190,7 +254,7 @@ namespace sprincle {
 
     caf::behavior make_behavior() override {
       return caf::behavior {
-        [=](primary, const delta<tuple_t>& changes) noexcept {
+        [&](primary, const delta<tuple_t>& changes) noexcept {
 
           delta<tuple_t> result(
             filter_impl(predicate, changes.positive),
@@ -201,10 +265,10 @@ namespace sprincle {
             this->send(next_actor, message_slot::value, move(result));
 
         },
-        [=](io_end) {
+        [&](io_end) {
           this->send(next_actor, io_end::value);
         },
-        others >> [=] {
+        others >> [&] {
           //TODO: Print error
         }
       };
@@ -243,18 +307,18 @@ namespace sprincle {
     using secondary_only_t = typename decltype(make_project<secondary_only_seq_t>())::template projected_t<secondary_tuple_t>;
     using result_tuple_t = decltype(tuple_cat(declval<primary_tuple_t>(), declval<secondary_only_t>()));
 
+    decltype(make_project<primary_only_seq_t>()) primary_only = make_project<primary_only_seq_t>();
+    decltype(make_project<secondary_only_seq_t>()) secondary_only = make_project<secondary_only_seq_t>();
+
+    project<(match_pairs::primary)...> primary_match;
+    project<(match_pairs::secondary)...> secondary_match;
+
     join_node(const actor& next_actor) : rete_node(next_actor) {};
 
     caf::behavior make_behavior() override {
-      auto primary_only = make_project<primary_only_seq_t>();
-      auto secondary_only = make_project<secondary_only_seq_t>();
-
-      project<(match_pairs::primary)...> primary_match;
-      project<(match_pairs::secondary)...> secondary_match;
 
       return {
-        [=](primary, const delta<primary_tuple_t>& primaries) noexcept {
-
+        [&](primary, const delta<primary_tuple_t>& primaries) noexcept {
 
           const auto& negatives = primaries.negative;
           const auto& positives = primaries.positive;
@@ -290,7 +354,7 @@ namespace sprincle {
 
         },
         // TODO fix code duplication
-        [=](secondary, const delta<secondary_tuple_t>& secondary_delta) noexcept {
+        [&](secondary, const delta<secondary_tuple_t>& secondary_delta) noexcept {
 
           const auto& negatives = secondary_delta.negative;
           const auto& positives = secondary_delta.positive;
@@ -326,10 +390,10 @@ namespace sprincle {
             this->send(next_actor, message_atom::value, move(result));
 
         },
-        [=](io_end) {
+        [&](io_end) {
           this->send(next_actor, io_end::value);
         },
-        others >> [=] {
+        others >> [&] {
           //TODO: Print error
         }
       };
@@ -354,15 +418,15 @@ namespace sprincle {
     using match_t = typename project<(match_pairs::primary)...>::template projected_t<primary_tuple_t>;
     using result_tuple_t = primary_tuple_t;
 
+    project<(match_pairs::primary)...> primary_match;
+    project<(match_pairs::secondary)...> secondary_match;
+
     antijoin_node(const actor& next_actor) : rete_node(next_actor) {};
 
     caf::behavior make_behavior() override {
 
-      project<(match_pairs::primary)...> primary_match;
-      project<(match_pairs::secondary)...> secondary_match;
-
       return {
-        [=](primary, const delta<primary_tuple_t> &primaries) noexcept {
+        [&](primary, const delta<primary_tuple_t>& primaries) noexcept {
 
           const auto& negatives = primaries.negative;
           const auto& positives = primaries.positive;
@@ -377,7 +441,7 @@ namespace sprincle {
             auto match_range = this->secondary_indexer.equal_range(key);
 
             //If no match found
-            if(match_range.first == end(this->secondary_indexer))
+            if(match_range.first == match_range.second)
               result.negative.insert(negative);
 
           }
@@ -390,7 +454,7 @@ namespace sprincle {
             auto match_range = this->secondary_indexer.equal_range(key);
 
             //If no match found
-            if(match_range.first == end(this->secondary_indexer))
+            if(match_range.first == match_range.second)
               result.positive.insert(positive);
 
           }
@@ -401,7 +465,7 @@ namespace sprincle {
 
 
         },
-        [=](secondary, const delta<secondary_tuple_t> &secondaries) noexcept {
+        [&](secondary, const delta<secondary_tuple_t> &secondaries) noexcept {
 
           const auto& negatives = secondaries.negative;
           const auto& positives = secondaries.positive;
@@ -439,10 +503,10 @@ namespace sprincle {
           }
 
         },
-        [=](io_end) {
+        [&](io_end) {
           this->send(next_actor, io_end::value);
         },
-        others >> [=] {
+        others >> [&] {
           //TODO: Print error
         }
       };

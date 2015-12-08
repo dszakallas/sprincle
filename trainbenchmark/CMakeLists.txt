@@ -34,22 +34,24 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 ## Add benchmark executable
 ##add_executable (LoadModelTest test_load_model.cpp)
-add_executable (RouteSensorQueryTest test_route_sensor_query.cpp)
+#add_executable (RouteSensorQueryTest test_route_sensor_query.cpp)
 add_executable (RouteSensorQueryCLI route_sensor_query_cli.cpp)
+add_executable (SwitchSensorQueryCLI switch_sensor_query_cli.cpp)
 
 ## Link benchmark executable to libraries
 ##target_link_libraries(LoadModelTest ${LD_DIRS})
-target_link_libraries(RouteSensorQueryTest
-  Sprincle
-  ${CAF_LIBRARY_CORE}
-  ${CAF_LIBRARY_IO}
-  ${Boost_NETWORK_LIBRARY}
-  ${Boost_FILESYSTEM_LIBRARY}
-  ${Boost_SYSTEM_LIBRARY}
-  ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
-  ${CPPNETLIB_LIBRARIES}
-  ${RAPTOR_LIBRARIES})
-target_link_libraries(RouteSensorQueryCLI
+# target_link_libraries(RouteSensorQueryTest
+#   Sprincle
+#   ${CAF_LIBRARY_CORE}
+#   ${CAF_LIBRARY_IO}
+#   ${Boost_NETWORK_LIBRARY}
+#   ${Boost_FILESYSTEM_LIBRARY}
+#   ${Boost_SYSTEM_LIBRARY}
+#   ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
+#   ${CPPNETLIB_LIBRARIES}
+#   ${RAPTOR_LIBRARIES})
+
+set(QueryCLILibraries
   Sprincle
   ${CAF_LIBRARY_CORE}
   ${CAF_LIBRARY_IO}
@@ -60,5 +62,8 @@ target_link_libraries(RouteSensorQueryCLI
   ${CPPNETLIB_LIBRARIES}
   ${RAPTOR_LIBRARIES})
 
-  configure_file(measure_queries.py measure_queries.py COPYONLY)
-  install(FILES measure_queries.py DESTINATION bin)
+target_link_libraries(RouteSensorQueryCLI ${QueryCLILibraries})
+target_link_libraries(SwitchSensorQueryCLI ${QueryCLILibraries})
+
+configure_file(measure_queries.py measure_queries.py COPYONLY)
+install(FILES measure_queries.py DESTINATION bin)

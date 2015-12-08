@@ -16,31 +16,30 @@
 
 #include "measure.hpp"
 #include "load_model.hpp"
-#include "route_sensor_query.hpp"
+#include "switch_sensor_query.hpp"
 
 namespace po = boost::program_options;
 
 void route_sensor_query(const string& filename) {
 
-  using ulong = unsigned long;
-
-  using output_t = route_sensor_network::output_t;
+  using output_t = switch_sensor::output_t;
 
   scoped_actor self;
-  actor network = spawn<route_sensor_network>(filename, self);
+  switch_sensor::network network(self);
   typename delta<output_t>::changeset_t matches;
   size_t inputs_closed = 0;
-  size_t calls = 0;
 
   auto read_time = measure<>::duration([&]{
 
     using namespace std::placeholders;
 
-    self->send(network, start::value);
+    read_turtle(filename, bind(switch_sensor::on_triple<decltype(self)>, cref(self), cref(network), _1, _2, _3));
+
+    self->send(network.in_switch, io_end::value);
+    self->send(network.in_sensor, io_end::value);
 
     self->do_receive(
       on<primary, delta<output_t>>() >> [&](primary, const delta<output_t>& output) {
-        ++calls;
         for(const auto& negative : output.negative)
           matches.erase(negative);
 
@@ -48,8 +47,11 @@ void route_sensor_query(const string& filename) {
       },
       on<io_end>() >> [&](io_end){
         ++inputs_closed;
+      },
+      after(chrono::seconds(5)) >> [&]{
+        self->quit();
       }
-    ).until([&] { return inputs_closed == 4; });
+    ).until([&] { return inputs_closed == network.input_size; });
 
   });
 
@@ -57,6 +59,7 @@ void route_sensor_query(const string& filename) {
   auto check_time = measure<>::duration([&]{
     matches.size();
   });
+
   cout << read_time.count() << endl;
   cout << check_time.count() << endl;
   cout << matches.size() << endl;
