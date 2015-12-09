@@ -10,6 +10,8 @@
 #include <chrono>
 #include <functional>
 #include <cerrno>
+#include <list>
+#include <thread>
 
 #include "config.h"
 #include "pretty_tuple.hpp"
@@ -22,40 +24,56 @@ namespace po = boost::program_options;
 
 //callback on triple read
 void parse_triple(
-  delta<route_sensor::edge_t>::changeset_t& in_switch,
-  delta<route_sensor::edge_t>::changeset_t& in_sensor,
-  delta<route_sensor::edge_t>::changeset_t& in_follows,
-  delta<route_sensor::edge_t>::changeset_t& in_definedBy,
+  list<delta<route_sensor::edge_t>>& in_switch,
+  list<delta<route_sensor::edge_t>>& in_sensor,
+  list<delta<route_sensor::edge_t>>& in_follows,
+  list<delta<route_sensor::edge_t>>& in_definedBy,
   string&& subject, string&& predicate, string&& object) {
 
   if(net::uri::uri(predicate).fragment() == string("switch")) {
-    in_switch.insert(
-      make_tuple(
-        stol(net::uri::uri(subject).fragment().substr(1)),
-        stol(net::uri::uri(object).fragment().substr(1))
-      )
-    );
+    in_switch.push_back(
+      delta<route_sensor::edge_t> {
+        set<route_sensor::edge_t> {
+          make_tuple(
+            stol(net::uri::uri(subject).fragment().substr(1)),
+            stol(net::uri::uri(object).fragment().substr(1))
+          ),
+        },
+        set<route_sensor::edge_t>{}
+      });
   } else if(net::uri::uri(predicate).fragment() == string("follows")) {
-    in_follows.insert(
-      make_tuple(
-        stol(net::uri::uri(subject).fragment().substr(1)),
-        stol(net::uri::uri(object).fragment().substr(1))
-      )
-    );
+    in_follows.push_back(
+      delta<route_sensor::edge_t> {
+        set<route_sensor::edge_t> {
+          make_tuple(
+            stol(net::uri::uri(subject).fragment().substr(1)),
+            stol(net::uri::uri(object).fragment().substr(1))
+          )
+        },
+        set<route_sensor::edge_t>{}
+      });
   } else if(net::uri::uri(predicate).fragment() == string("sensor")) {
-    in_sensor.insert(
-      make_tuple(
-        stol(net::uri::uri(subject).fragment().substr(1)),
-        stol(net::uri::uri(object).fragment().substr(1))
-      )
-    );
+    in_sensor.push_back(
+      delta<route_sensor::edge_t> {
+        set<route_sensor::edge_t> {
+          make_tuple(
+            stol(net::uri::uri(subject).fragment().substr(1)),
+            stol(net::uri::uri(object).fragment().substr(1))
+          )
+        },
+        set<route_sensor::edge_t>{}
+      });
   } else if(net::uri::uri(predicate).fragment() == string("definedBy")) {
-    in_definedBy.insert(
-      make_tuple(
-        stol(net::uri::uri(subject).fragment().substr(1)),
-        stol(net::uri::uri(object).fragment().substr(1))
-      )
-    );
+    in_definedBy.push_back(
+      delta<route_sensor::edge_t> {
+        set<route_sensor::edge_t> {
+          make_tuple(
+            stol(net::uri::uri(subject).fragment().substr(1)),
+            stol(net::uri::uri(object).fragment().substr(1))
+          )
+        },
+        set<route_sensor::edge_t>{}
+      });
   }
 }
 
@@ -66,10 +84,10 @@ void route_sensor_query(const string& filename) {
 
   scoped_actor self;
   route_sensor::network network(self);
-  delta<edge_t> in_switch;
-  delta<edge_t> in_sensor;
-  delta<edge_t> in_follows;
-  delta<edge_t> in_definedBy;
+  list<delta<edge_t>> in_switch;
+  list<delta<edge_t>> in_sensor;
+  list<delta<edge_t>> in_follows;
+  list<delta<edge_t>> in_definedBy;
   typename delta<output_t>::changeset_t matches;
   size_t inputs_closed = 0;
   size_t calls = 0;
@@ -77,19 +95,35 @@ void route_sensor_query(const string& filename) {
   using namespace std::placeholders;
 
   read_turtle(filename, bind(parse_triple,
-    ref(in_switch.positive), ref(in_sensor.positive),
-    ref(in_follows.positive), ref(in_definedBy.positive), _1, _2, _3));
+    ref(in_switch), ref(in_sensor),
+    ref(in_follows), ref(in_definedBy), _1, _2, _3));
 
   auto read_time = measure<>::duration([&]{
-    self->send(network.in_switch, primary::value, in_switch);
-    self->send(network.in_follows, primary::value, in_follows);
-    self->send(network.in_sensor, primary::value, in_sensor);
-    self->send(network.in_definedBy, primary::value, in_definedBy);
 
-    self->send(network.in_switch, io_end::value);
-    self->send(network.in_follows, io_end::value);
-    self->send(network.in_sensor, io_end::value);
-    self->send(network.in_definedBy, io_end::value);
+    thread a([&]{
+      for(const auto& e : in_switch) {
+        self->send(network.in_switch, primary::value, e);
+      }
+      self->send(network.in_switch, io_end::value);
+    });
+    thread b([&]{
+      for(const auto& e : in_sensor) {
+        self->send(network.in_sensor, primary::value, e);
+      }
+      self->send(network.in_sensor, io_end::value);
+    });
+    thread c([&]{
+      for(const auto& e : in_follows) {
+        self->send(network.in_follows, primary::value, e);
+      }
+      self->send(network.in_follows, io_end::value);
+    });
+    thread d([&]{
+      for(const auto& e : in_definedBy) {
+        self->send(network.in_definedBy, primary::value, e);
+      }
+      self->send(network.in_definedBy, io_end::value);
+    });
 
     self->do_receive(
       on<primary, delta<output_t>>() >> [&](primary, const delta<output_t>& output) {
@@ -106,6 +140,13 @@ void route_sensor_query(const string& filename) {
       //   self->quit();
       // }
     ).until([&] { return inputs_closed == network.input_size; });
+
+    a.join();
+    b.join();
+    c.join();
+    d.join();
+
+
 
   });
 

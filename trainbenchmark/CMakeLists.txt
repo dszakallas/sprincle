@@ -51,6 +51,7 @@ add_executable (RouteSensorQueryCLI route_sensor_query_cli.cpp)
 #   ${RAPTOR_LIBRARIES})
 target_link_libraries(RouteSensorQueryCLI
   Sprincle
+  -lpthread
   ${CAF_LIBRARY_CORE}
   ${CAF_LIBRARY_IO}
   ${Boost_NETWORK_LIBRARY}
