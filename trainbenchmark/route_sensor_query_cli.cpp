@@ -94,11 +94,15 @@ void route_sensor_query(const string& filename) {
 
   using namespace std::placeholders;
 
-  read_turtle(filename, bind(parse_triple,
-    ref(in_switch), ref(in_sensor),
-    ref(in_follows), ref(in_definedBy), _1, _2, _3));
-
   auto read_time = measure<>::duration([&]{
+
+    read_turtle(filename, bind(parse_triple,
+      ref(in_switch), ref(in_sensor),
+      ref(in_follows), ref(in_definedBy), _1, _2, _3));
+
+  });
+
+  auto check_time = measure<>::duration([&]{
 
     thread a([&]{
       for(const auto& e : in_switch) {
@@ -146,13 +150,8 @@ void route_sensor_query(const string& filename) {
     c.join();
     d.join();
 
-
-
-  });
-
-
-  auto check_time = measure<>::duration([&]{
     matches.size();
+
   });
 
   cout << read_time.count() << endl;
