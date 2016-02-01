@@ -30,35 +30,11 @@ endif()
 
 set(CMAKE_BUILD_TYPE Debug)
 
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-
-
-################################################################################
-#                    check for biicode build pipeline                          #
-################################################################################
-IF(BIICODE)
-
-  # define the biicode target and let it do its thing
-  ADD_BII_TARGETS()
-
-  # but first specify the compiled/linker options calculated above
-  string(REPLACE " " ";" REPLACED_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-  target_compile_options(${BII_BLOCK_TARGET} INTERFACE ${REPLACED_CXX_FLAGS})
-
-  include(biicode/boost/setup)
-
-  bii_find_boost(COMPONENTS boost_test REQUIRED)
-
-  RETURN()
-
-ENDIF()
 
 include_directories(include)
 
-add_subdirectory(src)
 add_subdirectory(test)
-add_subdirectory(trainbenchmark)
 
 enable_testing()
 set(TEST_ARGS --log_level=all)
@@ -66,7 +42,3 @@ set(TEST_ARGS --log_level=all)
 
 add_test(NAME DetailTest COMMAND DetailTest ${TEST_ARGS})
 add_test(NAME ReteTest COMMAND ReteTest ${TEST_ARGS})
-
-## This is from trainbenchmark
-##add_test(NAME LoadModelTest COMMAND LoadModelTest ${TEST_ARGS})
-add_test(NAME RouteSensorQueryTest COMMAND RouteSensorQueryTest ${TEST_ARGS})

@@ -1,4 +1,4 @@
-find_package(CAF 0.14.1 COMPONENTS core io)
+find_package(CAF 0.14.4 COMPONENTS core io)
 
 if(CAF_FOUND)
     include_directories(${CAF_INCLUDE_DIRS})
@@ -18,7 +18,6 @@ add_executable (DetailTest test_detail.cpp)
 add_executable (ReteTest test_rete.cpp)
 
 set(TEST_LIBRARIES
-  Sprincle
   ${CAF_LIBRARY_CORE}
   ${CAF_LIBRARY_IO}
   ${Boost_FILESYSTEM_LIBRARY}

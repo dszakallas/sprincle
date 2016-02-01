@@ -1,0 +1,8 @@
+{
+  "execPath": "/usr/bin/g++",
+  "gccDefaultCFlags": "-Wall",
+  "gccDefaultCppFlags": "-Wall -std=c++14 -fsyntax-only",
+  "gccErrorLimit": 15,
+  "gccIncludePaths": "./include",
+  "gccSuppressWarnings": false
+}

@@ -5,7 +5,9 @@
 #define BOOST_TEST_MODULE DetailTest
 
 #include <boost/test/unit_test.hpp>
-#include <sprincle/detail.hpp>
+#include <sprincle/details/project.hpp>
+#include <sprincle/details/exactly.hpp>
+
 
 #include <tuple>
 #include <string>
@@ -25,7 +27,7 @@ BOOST_AUTO_TEST_CASE( ProjectionShouldWork_0 )
 
   auto input = std::make_tuple(_0, _1, _2);
 
-  auto preserve = make_project<make_index_sequence<tuple_size<decltype(input)>::value>>();
+  auto preserve = details::project<decltype(input), 0, 1, 2>();
 
   auto output = preserve(input);
 
@@ -39,68 +41,11 @@ BOOST_AUTO_TEST_CASE( ProjectionShouldWork_1 )
   auto _1 = 4;
   auto _2 = 7;
 
-  auto trim = project<1>();
-
-  auto actual = trim(std::make_tuple(_0, _1, _2));
+  auto t = std::make_tuple(_0, _1, _2);
+  auto trim = details::project<decltype(t), 1>();
+  auto actual = trim(t);
 
   BOOST_CHECK( get<0>(actual) == _1 );
-
-}
-
-BOOST_AUTO_TEST_CASE( ElementsEquals_0 )
-{
-  auto _0 = 9;
-  auto _1 = 4;
-  auto _2 = 7;
-
-  auto compare = forall_equals();
-
-  auto equals = compare(std::make_tuple(_0, _1, _2));
-
-  BOOST_CHECK( ! equals );
-
-}
-
-BOOST_AUTO_TEST_CASE( ElementsEquals_1 )
-{
-  auto _0 = 0;
-  auto _1 = 0;
-  auto _2 = 0;
-
-  auto compare = forall_equals();
-
-
-  auto equals = compare(std::make_tuple(_0, _1, _2));
-
-  BOOST_CHECK( equals );
-
-}
-
-BOOST_AUTO_TEST_CASE( ElementsNotEqual_0 )
-{
-  auto _0 = 0;
-  auto _1 = 0;
-  auto _2 = 0;
-
-  auto compare = exists_not_equal();
-
-  auto not_equals = compare(std::make_tuple(_0, _1, _2));
-
-  BOOST_CHECK( ! not_equals );
-
-}
-
-BOOST_AUTO_TEST_CASE( ElementsNotEqual_1 )
-{
-  auto _0 = 0;
-  auto _1 = 2;
-  auto _2 = 3;
-
-  auto compare = exists_not_equal();
-
-  auto not_equals = compare(std::make_tuple(_0, _1, _2));
-
-  BOOST_CHECK( not_equals );
 
 }
 
@@ -110,8 +55,7 @@ BOOST_AUTO_TEST_CASE( Exactly_1 )
   auto _1 = 2;
   auto _2 = 3;
 
-  auto compare = exactly(
-    std::make_tuple(_0, _1, _2));
+  auto compare = details::make_exactly(std::make_tuple(_0, _1, _2));
 
 
   auto the_same = compare(std::make_tuple(_0, _1, _2));
@@ -119,20 +63,5 @@ BOOST_AUTO_TEST_CASE( Exactly_1 )
   BOOST_CHECK( the_same );
 
 }
-
-BOOST_AUTO_TEST_CASE( Exactly_2 )
-{
-  auto _0 = 0;
-  auto _1 = 2;
-  auto _2 = 3;
-
-  auto compare = exactly(std::make_tuple(_0, _1, _2));
-
-  auto the_same = compare(std::make_tuple(_0, _1, _2));
-
-  BOOST_CHECK( the_same );
-
-}
-
 
 BOOST_AUTO_TEST_SUITE_END()
