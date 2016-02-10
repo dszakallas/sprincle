@@ -42,3 +42,5 @@ set(TEST_ARGS --log_level=all)
 
 add_test(NAME DetailTest COMMAND DetailTest ${TEST_ARGS})
 add_test(NAME ReteTest COMMAND ReteTest ${TEST_ARGS})
+
+install(DIRECTORY include/ DESTINATION include/ )
