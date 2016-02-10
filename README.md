@@ -14,7 +14,7 @@ Sprincle is depending on the following programs and libraries:
 Sprincle is a header only library, but to make sure it works on your machine you should at least try to build and
 run the tests.
 
-An UNIX-like systems
+On UNIX-like systems
 ```bash
 git clone https://github.com/szdavid92/sprincle.git
 cd sprincle
