@@ -1,5 +1,5 @@
 # sprincle
-Incremental graph query API based on actors
+Incremental graph query engine based on actors
 
 Sprincle is a collection of CAF actors that can be used to build a Rete network for graph pattern matching.
 
