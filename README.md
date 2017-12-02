@@ -1,3 +1,7 @@
+![nothing-to-do](https://orig02.deviantart.net/0ad0/f/2011/288/3/c/nothing_to_do_here_by_rober_raik-d4cxltj.png)
+
+Please leave this repo. It likes to be lonely.
+
 # sprincle
 Incremental graph query engine based on actors
 
